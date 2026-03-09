@@ -2,8 +2,8 @@
 
 # dependencies
 /node_modules
-/.qoder
-/.vscode
+.qoder
+.vscode
 /.pnp
 .pnp.*
 .yarn/*
