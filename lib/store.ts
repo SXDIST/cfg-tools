@@ -33,8 +33,6 @@ export interface MainClassData {
     enabledParams: Record<string, boolean>;
     values: Record<string, any>;
     children: ChildClassData[];
-    slots: SlotData[];
-    proxies: ProxyData[];
 }
 
 export interface ConfigData {
@@ -43,6 +41,8 @@ export interface ConfigData {
     requiredAddons: string[];
     classes: MainClassData[];
     activeTabId: string | null;
+    slots: SlotData[];
+    proxies: ProxyData[];
 }
 
 export interface AppState {
@@ -73,14 +73,14 @@ export interface AppState {
     deleteChildClass: (configId: string, tabId: string, childId: string) => void;
 
     // Slot actions
-    addSlot: (configId: string, tabId: string) => void;
-    updateSlot: (configId: string, tabId: string, slotId: string, updates: Partial<SlotData>) => void;
-    deleteSlot: (configId: string, tabId: string, slotId: string) => void;
+    addSlot: (configId: string) => void;
+    updateSlot: (configId: string, slotId: string, updates: Partial<SlotData>) => void;
+    deleteSlot: (configId: string, slotId: string) => void;
 
     // Proxy actions
-    addProxy: (configId: string, tabId: string) => void;
-    updateProxy: (configId: string, tabId: string, proxyId: string, updates: Partial<ProxyData>) => void;
-    deleteProxy: (configId: string, tabId: string, proxyId: string) => void;
+    addProxy: (configId: string) => void;
+    updateProxy: (configId: string, proxyId: string, updates: Partial<ProxyData>) => void;
+    deleteProxy: (configId: string, proxyId: string) => void;
 }
 
 const getDefaultValues = () => {
@@ -100,7 +100,9 @@ const PRESET_PARAMS: Record<PresetName, string[]> = {
         'scope', 'displayName', 'descriptionShort', 'model', 'weight', 'itemSize', 'itemsCargoSize',
         'inventorySlot', 'attachments', 'itemInfo', 'hiddenSelections',
         'repairableWithKits', 'repairCosts', 'varWetMax', 'heatIsolation', 'quickBarBonus',
+        'durability',
         'male', 'female',
+        'biological', 'chemical',
         'hitpoints', 'healthLevels', 'armorProjectile', 'armorMelee', 'armorFrag', 'armorInfected',
         'dropSoundSet', 'pickUpSoundSet'
     ]
@@ -119,6 +121,8 @@ export const useAppStore = create<AppState>()(
                     name,
                     requiredAddons: ['DZ_Data', 'DZ_Characters'],
                     activeTabId: initialTabId,
+                    slots: [],
+                    proxies: [],
                     classes: [
                         {
                             id: initialTabId,
@@ -132,8 +136,6 @@ export const useAppStore = create<AppState>()(
                             },
                             values: getDefaultValues(),
                             children: [],
-                            slots: [],
-                            proxies: [],
                         }
                     ]
                 };
@@ -152,6 +154,8 @@ export const useAppStore = create<AppState>()(
                         ...configToCopy,
                         id: uuidv4(),
                         name: `${configToCopy.name} (Copy)`,
+                        slots: (configToCopy.slots || []).map(s => ({ ...s, id: uuidv4() })),
+                        proxies: (configToCopy.proxies || []).map(p => ({ ...p, id: uuidv4() })),
                         classes: configToCopy.classes.map(cls => ({
                             ...cls,
                             id: uuidv4(),
@@ -212,8 +216,6 @@ export const useAppStore = create<AppState>()(
                     },
                     values: getDefaultValues(),
                     children: [],
-                    slots: [],
-                    proxies: [],
                 };
 
                 set((state) => ({
@@ -374,13 +376,13 @@ export const useAppStore = create<AppState>()(
                         if (c.id === state.activeConfigId && c.activeTabId) {
                             return {
                                 ...c,
+                                slots: presetSlots,
+                                proxies: presetProxies,
                                 classes: c.classes.map(cls => cls.id === c.activeTabId ? {
                                     ...cls,
                                     baseClass: defaultBaseClass,
                                     enabledParams: newEnabledParams,
                                     values: { ...cls.values, ...presetValues },
-                                    slots: presetSlots,
-                                    proxies: presetProxies,
                                     children: presetChildren
                                 } : cls)
                             };
@@ -459,7 +461,7 @@ export const useAppStore = create<AppState>()(
 
             // --- SLOT ACTIONS ---
 
-            addSlot: (configId, tabId) => {
+            addSlot: (configId) => {
                 const newSlot: SlotData = {
                     id: uuidv4(),
                     slotName: 'newSlot',
@@ -468,124 +470,44 @@ export const useAppStore = create<AppState>()(
                     ghostIconImage: '',
                 };
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => cls.id === tabId ? { ...cls, slots: [...(cls.slots || []), newSlot] } : cls)
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, slots: [...(c.slots || []), newSlot] } : c)
                 }));
             },
 
-            updateSlot: (configId, tabId, slotId, updates) => {
+            updateSlot: (configId, slotId, updates) => {
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => {
-                                    if (cls.id === tabId) {
-                                        return {
-                                            ...cls,
-                                            slots: (cls.slots || []).map(s => s.id === slotId ? { ...s, ...updates } : s)
-                                        };
-                                    }
-                                    return cls;
-                                })
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, slots: (c.slots || []).map(s => s.id === slotId ? { ...s, ...updates } : s) } : c)
                 }));
             },
 
-            deleteSlot: (configId, tabId, slotId) => {
+            deleteSlot: (configId, slotId) => {
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => {
-                                    if (cls.id === tabId) {
-                                        return {
-                                            ...cls,
-                                            slots: (cls.slots || []).filter(s => s.id !== slotId)
-                                        };
-                                    }
-                                    return cls;
-                                })
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, slots: (c.slots || []).filter(s => s.id !== slotId) } : c)
                 }));
             },
 
             // --- PROXY ACTIONS ---
 
-            addProxy: (configId, tabId) => {
+            addProxy: (configId) => {
                 const newProxy: ProxyData = {
                     id: uuidv4(),
                     proxyName: 'new_proxy',
                     inventorySlots: [],
                 };
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => cls.id === tabId ? { ...cls, proxies: [...(cls.proxies || []), newProxy] } : cls)
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: [...(c.proxies || []), newProxy] } : c)
                 }));
             },
 
-            updateProxy: (configId, tabId, proxyId, updates) => {
+            updateProxy: (configId, proxyId, updates) => {
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => {
-                                    if (cls.id === tabId) {
-                                        return {
-                                            ...cls,
-                                            proxies: (cls.proxies || []).map(p => p.id === proxyId ? { ...p, ...updates } : p)
-                                        };
-                                    }
-                                    return cls;
-                                })
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: (c.proxies || []).map(p => p.id === proxyId ? { ...p, ...updates } : p) } : c)
                 }));
             },
 
-            deleteProxy: (configId, tabId, proxyId) => {
+            deleteProxy: (configId, proxyId) => {
                 set((state) => ({
-                    configs: state.configs.map((c) => {
-                        if (c.id === configId) {
-                            return {
-                                ...c,
-                                classes: c.classes.map(cls => {
-                                    if (cls.id === tabId) {
-                                        return {
-                                            ...cls,
-                                            proxies: (cls.proxies || []).filter(p => p.id !== proxyId)
-                                        };
-                                    }
-                                    return cls;
-                                })
-                            };
-                        }
-                        return c;
-                    })
+                    configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: (c.proxies || []).filter(p => p.id !== proxyId) } : c)
                 }));
             },
         }),
@@ -607,7 +529,7 @@ export const useAppStore = create<AppState>()(
                 })(),
                 removeItem: (name: string) => localStorage.removeItem(name),
             },
-            version: 1,
+            version: 2,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     if (persistedState && persistedState.configs) {
@@ -628,6 +550,16 @@ export const useAppStore = create<AppState>()(
                             }
                             return c;
                         });
+                    }
+                }
+                if (version <= 1) {
+                    if (persistedState?.configs) {
+                        persistedState.configs = persistedState.configs.map((c: any) => ({
+                            ...c,
+                            slots: c.slots ?? (c.classes || []).flatMap((cls: any) => cls.slots || []),
+                            proxies: c.proxies ?? (c.classes || []).flatMap((cls: any) => cls.proxies || []),
+                            classes: (c.classes || []).map(({ slots: _s, proxies: _p, ...rest }: any) => rest),
+                        }));
                     }
                 }
                 return persistedState;

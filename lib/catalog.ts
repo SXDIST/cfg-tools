@@ -198,6 +198,15 @@ export const CATALOG: CategoryDef[] = [
         ]
     },
     {
+        id: 'protection',
+        title: 'Защита (Protection)',
+        description: 'Сопротивление биологическим и химическим воздействиям.',
+        params: [
+            { key: 'biological', label: 'Biological Protection', description: 'Коэффициент защиты от биологических угроз.', example: '1.0 — полная защита. 0.75 — частичная защита.', type: 'number', defaultValue: 1.0, placement: 'Protection' },
+            { key: 'chemical', label: 'Chemical Protection', description: 'Коэффициент защиты от химических угроз.', example: '1.0 — полная защита. 0.0 — защиты нет.', type: 'number', defaultValue: 1.0, placement: 'Protection' },
+        ]
+    },
+    {
         id: 'damageSystem',
         title: 'Система урона (DamageSystem)',
         description: 'Здоровье, броня и модификаторы.',
@@ -208,7 +217,7 @@ export const CATALOG: CategoryDef[] = [
             { key: 'armorMelee', label: 'Armor (Melee)', description: 'Множитель проходящего урона по персонажу от атак ближнего боя или холодного оружия (ножи, топоры, кулаки).', example: 'Health: 0.8 — значение снижает получаемый ХП урон на 20%.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.Melee' },
             { key: 'armorFrag', label: 'Armor (Frag Grenade)', description: 'Множитель проходящего урона по персонажу от взрывных осколков (гранаты, мины).', example: 'Health: 0.5 — защищает от 50% урона гранаты.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.FragGrenade' },
             { key: 'armorInfected', label: 'Armor (Infected)', description: 'Множитель проходящего урона по персонажу от ударов зараженных (зомби).', example: 'Blood: 0.1 — шанс кровотечения от атак зомби почти равен нулю.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.Infected' },
-            { key: 'durability', label: 'Durability Modifier', description: 'Множитель долговечности предмета. Влияет на то, как быстро предмет теряет прочность при использовании.', example: '1.0 — стандарт. 5.0 — предмет в 5 раз долговечнее.', type: 'number', defaultValue: 1.0, placement: 'DamageSystem.GlobalHealth' },
+            { key: 'durability', label: 'Durability Modifier', description: 'Множитель долговечности предмета. Влияет на то, как быстро предмет теряет прочность при использовании.', example: '1.0 — стандарт. 5.0 — предмет в 5 раз долговечнее.', type: 'number', defaultValue: 1.0, placement: 'root' },
         ]
     },
     {

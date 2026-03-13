@@ -1,4 +1,4 @@
-import { ConfigData, MainClassData } from './store';
+import { ConfigData } from './store';
 import { CATALOG } from './catalog';
 
 function toBooleanNumber(val: any): number {
@@ -63,11 +63,18 @@ export function generateCpp(config: ConfigData): string {
     const addons = (config.requiredAddons || ['DZ_Data', 'DZ_Characters']).map(a => `"${a}"`).join(',');
     let out = `class CfgPatches\n{\n  class ${projectName}\n  {\n    requiredAddons[] = {${addons}};\n  };\n};\n\n`;
 
-    // 1. Collect all unique base classes
+    const localClassNames = new Set<string>(
+        config.classes.map((cls) => cls.className.replace(/[^a-zA-Z0-9_]/g, '') || 'ExampleClass')
+    );
+
+    // 1. Collect all unique external base classes
     const baseClasses = new Set<string>();
     config.classes.forEach(cls => {
         if (cls.baseClass) {
-            baseClasses.add(cls.baseClass.replace(/[^a-zA-Z0-9_]/g, ''));
+            const sanitizedBaseClass = cls.baseClass.replace(/[^a-zA-Z0-9_]/g, '');
+            if (sanitizedBaseClass && !localClassNames.has(sanitizedBaseClass)) {
+                baseClasses.add(sanitizedBaseClass);
+            }
         }
     });
 
@@ -219,7 +226,7 @@ export function generateCpp(config: ConfigData): string {
     out += `};\n`;
 
     // 3. Handle CfgNonAIVehicles across all classes
-    const allProxies = config.classes.flatMap(cls => cls.proxies || []);
+    const allProxies = config.proxies || [];
 
     if (allProxies.length > 0) {
         out += `\nclass CfgNonAIVehicles\n{\n`;
@@ -240,7 +247,7 @@ export function generateCpp(config: ConfigData): string {
     }
 
     // 4. Handle CfgSlots across all classes
-    const allSlots = config.classes.flatMap(cls => cls.slots || []);
+    const allSlots = config.slots || [];
 
     if (allSlots.length > 0) {
         out += `\nclass CfgSlots\n{\n`;

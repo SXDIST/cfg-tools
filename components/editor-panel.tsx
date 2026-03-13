@@ -76,11 +76,9 @@ function EmptyState({ message }: { message: string }) {
 const SlotsSection = memo(function SlotsSection({
   slots,
   configId,
-  tabId,
 }: {
   slots: SlotData[];
   configId: string;
-  tabId: string;
 }) {
   const addSlot = useAppStore((s) => s.addSlot);
   const updateSlot = useAppStore((s) => s.updateSlot);
@@ -100,7 +98,7 @@ const SlotsSection = memo(function SlotsSection({
             variant="outline"
             size="sm"
             className="h-8 shrink-0"
-            onClick={() => addSlot(configId, tabId)}
+            onClick={() => addSlot(configId)}
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
           </Button>
@@ -128,7 +126,7 @@ const SlotsSection = memo(function SlotsSection({
                     <Input
                       value={slot.slotName}
                       onChange={(e) =>
-                        updateSlot(configId, tabId, slot.id, {
+                        updateSlot(configId, slot.id, {
                           slotName: e.target.value,
                         })
                       }
@@ -141,7 +139,7 @@ const SlotsSection = memo(function SlotsSection({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-zinc-400 hover:text-red-500 shrink-0"
-                  onClick={() => deleteSlot(configId, tabId, slot.id)}
+                  onClick={() => deleteSlot(configId, slot.id)}
                 >
                   <Trash className="w-4 h-4" />
                 </Button>
@@ -154,7 +152,7 @@ const SlotsSection = memo(function SlotsSection({
                 <Input
                   value={slot.displayName}
                   onChange={(e) =>
-                    updateSlot(configId, tabId, slot.id, {
+                    updateSlot(configId, slot.id, {
                       displayName: e.target.value,
                     })
                   }
@@ -174,7 +172,7 @@ const SlotsSection = memo(function SlotsSection({
                   <Input
                     value={slot.ghostIconSet}
                     onChange={(e) =>
-                      updateSlot(configId, tabId, slot.id, {
+                      updateSlot(configId, slot.id, {
                         ghostIconSet: e.target.value,
                       })
                     }
@@ -187,7 +185,7 @@ const SlotsSection = memo(function SlotsSection({
                   <Input
                     value={slot.ghostIconImage}
                     onChange={(e) =>
-                      updateSlot(configId, tabId, slot.id, {
+                      updateSlot(configId, slot.id, {
                         ghostIconImage: e.target.value,
                       })
                     }
@@ -211,11 +209,9 @@ const SlotsSection = memo(function SlotsSection({
 const ProxiesSection = memo(function ProxiesSection({
   proxies,
   configId,
-  tabId,
 }: {
   proxies: ProxyData[];
   configId: string;
-  tabId: string;
 }) {
   const addProxy = useAppStore((s) => s.addProxy);
   const updateProxy = useAppStore((s) => s.updateProxy);
@@ -235,7 +231,7 @@ const ProxiesSection = memo(function ProxiesSection({
             variant="outline"
             size="sm"
             className="h-8 shrink-0"
-            onClick={() => addProxy(configId, tabId)}
+            onClick={() => addProxy(configId)}
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
           </Button>
@@ -263,7 +259,7 @@ const ProxiesSection = memo(function ProxiesSection({
                     <Input
                       value={proxy.proxyName}
                       onChange={(e) =>
-                        updateProxy(configId, tabId, proxy.id, {
+                        updateProxy(configId, proxy.id, {
                           proxyName: e.target.value,
                         })
                       }
@@ -276,7 +272,7 @@ const ProxiesSection = memo(function ProxiesSection({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-zinc-400 hover:text-red-500 shrink-0"
-                  onClick={() => deleteProxy(configId, tabId, proxy.id)}
+                  onClick={() => deleteProxy(configId, proxy.id)}
                 >
                   <Trash className="w-4 h-4" />
                 </Button>
@@ -290,7 +286,7 @@ const ProxiesSection = memo(function ProxiesSection({
                     size="sm"
                     className="h-6 px-2 text-xs"
                     onClick={() =>
-                      updateProxy(configId, tabId, proxy.id, {
+                      updateProxy(configId, proxy.id, {
                         inventorySlots: [...proxy.inventorySlots, ""],
                       })
                     }
@@ -306,7 +302,7 @@ const ProxiesSection = memo(function ProxiesSection({
                         onChange={(e) => {
                           const updated = [...proxy.inventorySlots];
                           updated[idx] = e.target.value;
-                          updateProxy(configId, tabId, proxy.id, {
+                          updateProxy(configId, proxy.id, {
                             inventorySlots: updated,
                           });
                         }}
@@ -321,7 +317,7 @@ const ProxiesSection = memo(function ProxiesSection({
                           const updated = proxy.inventorySlots.filter(
                             (_, i) => i !== idx,
                           );
-                          updateProxy(configId, tabId, proxy.id, {
+                          updateProxy(configId, proxy.id, {
                             inventorySlots: updated,
                           });
                         }}
@@ -1970,14 +1966,12 @@ export function EditorPanel() {
             className={activeTab.className}
           />
           <SlotsSection
-            slots={activeTab.slots || []}
+            slots={config.slots || []}
             configId={config.id}
-            tabId={activeTab.id}
           />
           <ProxiesSection
-            proxies={activeTab.proxies || []}
+            proxies={config.proxies || []}
             configId={config.id}
-            tabId={activeTab.id}
           />
         </div>
       </ScrollArea>
