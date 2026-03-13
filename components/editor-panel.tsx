@@ -1278,7 +1278,7 @@ export function EditorPanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Class tabs row */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="flex flex-wrap items-center gap-1">
                 {config.classes.map((cls) => (
                   <div
                     key={cls.id}
