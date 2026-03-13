@@ -480,12 +480,15 @@ const RetexturesSection = memo(function RetexturesSection({
                   <Input
                     type="number"
                     step="0.01"
+                    min={0}
+                    max={1}
                     value={child.visibilityModifier ?? 1.0}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(1, Number(e.target.value)));
                       updateChildClass(configId, tabId, child.id, {
-                        visibilityModifier: Number(e.target.value),
-                      })
-                    }
+                        visibilityModifier: val,
+                      });
+                    }}
                     className="h-8 text-sm font-mono"
                   />
                 </div>
@@ -1587,8 +1590,9 @@ export function EditorPanel() {
                                   <Input
                                     type="number"
                                     value={value}
-                                    min={param.key === "scope" ? 0 : undefined}
-                                    max={param.key === "scope" ? 2 : undefined}
+                                    min={param.key === "scope" ? 0 : param.key === "visibilityModifier" ? 0 : undefined}
+                                    max={param.key === "scope" ? 2 : param.key === "visibilityModifier" ? 1 : undefined}
+                                    step={param.key === "visibilityModifier" ? 0.01 : undefined}
                                     onChange={(e) => {
                                       let val = Number(e.target.value);
                                       if (param.key === "scope")
@@ -1596,6 +1600,8 @@ export function EditorPanel() {
                                           0,
                                           Math.min(2, Math.floor(val)),
                                         );
+                                      if (param.key === "visibilityModifier")
+                                        val = Math.max(0, Math.min(1, val));
                                       handleValueChange(param.key, val);
                                     }}
                                     className="h-8 text-sm font-mono"
