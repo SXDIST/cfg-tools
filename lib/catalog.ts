@@ -1,9 +1,15 @@
-export type ParamType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'array_of_strings' | 'array_of_numbers' | 'armor_modifier' | 'anim_event';
+export type ParamType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'array_of_strings' | 'array_of_numbers' | 'armor_modifier' | 'anim_event' | 'select' | 'multi-select' | 'combobox';
 
 export interface AnimEventOption {
     label: string;
     soundSet: string;
     id: number;
+}
+
+export interface SelectOption {
+    value: string;
+    label: string;
+    description: string;
 }
 
 export interface ParamDef {
@@ -15,6 +21,7 @@ export interface ParamDef {
     defaultValue?: any;
     placement?: string; // e.g. 'root', 'DamageSystem', 'ClothingTypes'
     options?: AnimEventOption[]; // specifically for anim_event
+    selectOptions?: SelectOption[]; // for select type
 }
 
 export interface CategoryDef {
@@ -37,7 +44,42 @@ export const CATALOG: CategoryDef[] = [
             { key: 'weight', label: 'Weight (g)', description: 'Вес предмета в граммах. Влияет на общую переносимую массу персонажа и затраты выносливости.', example: '1000 — вес равен 1 кг. 2500 — вес равен 2.5 кг.', type: 'number', defaultValue: 1000, placement: 'root' },
             { key: 'itemSize', label: 'Item Size', description: 'Занимаемое место предмета в инвентаре (ширина и высота в клетках).', example: '[2, 2] — предмет займет 2 клетки в ширину и 2 в высоту (всего 4).', type: 'array_of_numbers', defaultValue: [2, 2], placement: 'root' },
             { key: 'itemsCargoSize', label: 'Cargo Size', description: 'Размер внутреннего инвентаря самого предмета в клетках (ширина и высота).', example: '[5, 4] — внутри предмета сетка 5x4 (всего 20). [0, 0] — нет инвентаря.', type: 'array_of_numbers', defaultValue: [0, 0], placement: 'root' },
-            { key: 'inventorySlot', label: 'Inventory Slots', description: 'Слоты экипировки персонажа, в которые можно надеть или поместить данный предмет.', example: '["Body"] для курток, ["Head"] для шлемов, ["Back"] для рюкзаков.', type: 'array_of_strings', defaultValue: ['Headgear'], placement: 'root' },
+            { 
+                key: 'inventorySlot', 
+                label: 'Inventory Slot', 
+                description: 'Слот экипировки персонажа, в который можно надеть данный предмет.', 
+                type: 'combobox', 
+                defaultValue: 'Headgear', 
+                placement: 'root',
+                selectOptions: [
+                    { value: 'Shoulder', label: 'Shoulder', description: 'Слот для основного оружия.' },
+                    { value: 'Melee', label: 'Melee', description: 'Слот для холодного оружия.' },
+                    { value: 'Vest', label: 'Vest', description: 'Слот для жилета.' },
+                    { value: 'Body', label: 'Body', description: 'Слот для одежды на торс.' },
+                    { value: 'Hips', label: 'Hips', description: 'Слот на поясе.' },
+                    { value: 'Legs', label: 'Legs', description: 'Слот для штанов.' },
+                    { value: 'Back', label: 'Back', description: 'Слот для рюкзака.' },
+                    { value: 'Headgear', label: 'Headgear', description: 'Слот для головного убора.' },
+                    { value: 'Mask', label: 'Mask', description: 'Слот для маски.' },
+                    { value: 'Eyewear', label: 'Eyewear', description: 'Слот для очков.' },
+                    { value: 'Gloves', label: 'Gloves', description: 'Слот для перчаток.' },
+                    { value: 'Feet', label: 'Feet', description: 'Слот для обуви.' },
+                    { value: 'Armband', label: 'Armband', description: 'Слот для нарукавной повязки.' },
+                    { value: 'Handyman', label: 'Handyman', description: 'Слот для инструментов.' }
+                ]
+            },
+            {
+                key: 'repairable',
+                label: 'Repairable',
+                description: 'Определяет, можно ли чинить предмет.',
+                type: 'select',
+                defaultValue: 1,
+                placement: 'root',
+                selectOptions: [
+                    { value: '1', label: 'Да', description: 'Предмет можно чинить.' },
+                    { value: '0', label: 'Нет', description: 'Предмет нельзя чинить.' }
+                ]
+            },
             { key: 'attachments', label: 'Attachments', description: 'Доступные слоты на самом предмете, куда можно прикрепить другие предметы.', example: '["Chemlight", "WalkieTalkie"] — позволит прикрепить химсвет и рацию.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
             { key: 'itemInfo', label: 'Item Info Categories', description: 'Системные категории предмета, используемые игрой для логики сортировки или фильтрации.', example: '["Clothing", "Body"] для одежды, надеваемой на торс.', type: 'array_of_strings', defaultValue: ['Clothing'], placement: 'root' },
             { key: 'hiddenSelections', label: 'Hidden Selections', description: 'Имена секций (областей) в 3D модели, на которые можно применять измененные текстуры и материалы.', example: '["camoGround", "zbytek"] — имена должны совпадать с заготовками в модели.', type: 'array_of_strings', defaultValue: ['camoGround'], placement: 'root' },
@@ -49,6 +91,101 @@ export const CATALOG: CategoryDef[] = [
             { key: 'heatIsolation', label: 'Heat Isolation', description: 'Показатель теплоизоляции предмета. Влияет на то, насколько эффективно одежда согревает персонажа.', example: '0.1 — плохая изоляция (футболка), 0.9 — отличная изоляция (зимняя куртка).', type: 'number', defaultValue: 0.5, placement: 'root' },
             { key: 'quickBarBonus', label: 'Quickbar Bonus Slots', description: 'Количество дополнительных слотов быстрого доступа, которые добавляет предмет при надевании.', example: '1, 2, 3 или 4. Например, разгрузочный жилет может добавлять 4 слота.', type: 'number', defaultValue: 0, placement: 'root' },
             { key: 'visibilityModifier', label: 'Visibility Modifier', description: 'Модификатор заметности для ИИ (зомби и животных). Снижение значения усиливает камуфляж.', example: '1.0 — стандартная видимость, 0.8 — улучшенный камуфляж (-20% заметности).', type: 'number', defaultValue: 1.0, placement: 'root' },
+            { key: 'varQuantityInit', label: 'Initial Quantity', description: 'Начальное количество ресурса/предметов в стеке при появлении предмета.', example: '250 — в предмете будет 250 единиц (например, патронов или прочности ткани).', type: 'number', defaultValue: 250, placement: 'root' },
+            { key: 'varQuantityMin', label: 'Min Quantity', description: 'Минимально возможное количество ресурса в предмете.', example: '0 — стандарт для большинства предметов.', type: 'number', defaultValue: 0, placement: 'root' },
+            { key: 'varQuantityMax', label: 'Max Quantity', description: 'Максимально возможное количество ресурса в предмете (полный стек).', example: '250 — максимальный объем.', type: 'number', defaultValue: 250, placement: 'root' },
+            {
+                key: 'stackedUnit',
+                label: 'Stacked Unit',
+                description: 'Тип единицы измерения, которая отображается рядом с количеством предмета в инвентаре.',
+                type: 'select',
+                defaultValue: 'w',
+                placement: 'root',
+                selectOptions: [
+                    { value: 'ml', label: 'ml', description: 'Миллилитры. Обычно используется для жидкостей (вода, бензин, кровь).' },
+                    { value: 'pills', label: 'pills', description: 'Таблетки. Используется для медикаментов в упаковках.' },
+                    { value: 'g', label: 'g', description: 'Граммы. Используется для еды или сыпучих материалов.' },
+                    { value: 'percentage', label: 'percentage', description: 'Проценты (%). Используется для батареек и ресурсов.' },
+                    { value: 'w', label: 'w', description: 'Целые единицы (Whole). Стандартное отображение для большинства предметов.' },
+                    { value: 'NA', label: 'NA', description: 'Не применимо (Not Applicable).' }
+                ]
+            },
+            { key: 'quantityBar', label: 'Show Quantity Bar', description: 'Отображать полоску количества предмета (прочность/объем) в инвентаре.', type: 'boolean', defaultValue: false, placement: 'root' },
+            { key: 'absorbency', label: 'Absorbency', description: 'Коэффициент впитывания влаги. Определяет, как быстро предмет тяжелеет и становится мокрым.', example: '0.0 — не впитывает, 0.5 — среднее впитывание.', type: 'number', defaultValue: 0.0, placement: 'root' },
+        ]
+    },
+    {
+        id: 'clothing',
+        title: 'Одежда и маскировка',
+        description: 'Параметры скрытия частей тела и взаимодействия с другими элементами одежды.',
+        params: [
+            { key: 'noHelmet', label: 'No Helmet', description: 'Запретить надевание шлема вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },
+            { key: 'noMask', label: 'No Mask', description: 'Запретить надевание маски вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },
+            { key: 'noEyewear', label: 'No Eyewear', description: 'Запретить надевание очков вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },
+            { key: 'noNVStrap', label: 'No NVG Strap', description: 'Скрывать ремешок ПНВ при надевании этого предмета.', type: 'boolean', defaultValue: false, placement: 'root' },
+            {
+                key: 'headSelectionsToHide',
+                label: 'Hide Head Selections',
+                description: 'Часть головы, которая будет скрыта при надевании предмета (для предотвращения "клиппинга").',
+                type: 'combobox',
+                defaultValue: '',
+                placement: 'root',
+                selectOptions: [
+                    { value: 'Clipping_AirborneMask', label: 'Airborne Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Balaclava', label: 'Balaclava', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Balaclava_3holes', label: 'Balaclava 3holes', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_BandanaFace', label: 'Bandana Face', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_BandanaHead', label: 'Bandana Head', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_baseballcap', label: 'Baseballcap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_BeanieHat', label: 'Beanie Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_BoonieHat', label: 'Boonie Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_BurlapSack', label: 'Burlap Sack', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_ConstructionHelmet', label: 'Construction Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_CowboyHat', label: 'Cowboy Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_FireHelmet', label: 'Fire Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_FlatCap', label: 'Flat Cap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Gasmask', label: 'Gasmask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_GhillieHood', label: 'Ghillie Hood', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_GP5GasMask', label: 'GP5 Gas Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_grathelm', label: 'Grathelm', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Hat_leather', label: 'Hat Leather', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_headCover_improvised', label: 'Head Cover Improvised', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_HeadTorch', label: 'Head Torch', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_HelmetMich', label: 'Helmet Mich', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_HeloHelmet', label: 'Helo Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Hockey_hekmet', label: 'Hockey Hekmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Hockey_helmet', label: 'Hockey Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Maska', label: 'Maska', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_MedicalScrubs_Hat', label: 'Medical Scrubs Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Mich2001', label: 'Mich 2001', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_MilitaryBeret', label: 'Military Beret', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_MilitaryBeret_xx', label: 'Military Beret Xx', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_MotoHelmet', label: 'Moto Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_mouth_rags', label: 'Mouth Rags', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_MxHelmet', label: 'Mx Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_NBC_Hood', label: 'NBC Hood', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_NioshFaceMask', label: 'Niosh Face Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_NVGHeadstrap', label: 'NVG Headstrap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_OfficerHat', label: 'Officer Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_pilotka', label: 'Pilotka', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Policecap', label: 'Policecap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_prison_cap', label: 'Prison Cap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_ProtecSkateHelmet2', label: 'Protec Skate Helmet2', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_PumpkinHelmet', label: 'Pumpkin Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_RadarCap', label: 'Radar Cap', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_SantasBeard', label: 'Santas Beard', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_SantasHat', label: 'Santas Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Ssh68Helmet', label: 'Ssh68 Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Surgical_mask', label: 'Surgical Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_TankerHelmet', label: 'Tanker Helmet', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_ushanka', label: 'Ushanka', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_VintageHockeyMask', label: 'Vintage Hockey Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_Welding_Mask', label: 'Welding Mask', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_WitchHat', label: 'Witch Hat', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_WitchHood', label: 'Witch Hood', description: 'Значение из DZ/characters.' },
+                    { value: 'Clipping_ZmijovkaCap', label: 'Zmijovka Cap', description: 'Значение из DZ/characters.' }
+                ]
+            }
         ]
     },
     {
@@ -71,6 +208,57 @@ export const CATALOG: CategoryDef[] = [
             { key: 'armorMelee', label: 'Armor (Melee)', description: 'Множитель проходящего урона по персонажу от атак ближнего боя или холодного оружия (ножи, топоры, кулаки).', example: 'Health: 0.8 — значение снижает получаемый ХП урон на 20%.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.Melee' },
             { key: 'armorFrag', label: 'Armor (Frag Grenade)', description: 'Множитель проходящего урона по персонажу от взрывных осколков (гранаты, мины).', example: 'Health: 0.5 — защищает от 50% урона гранаты.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.FragGrenade' },
             { key: 'armorInfected', label: 'Armor (Infected)', description: 'Множитель проходящего урона по персонажу от ударов зараженных (зомби).', example: 'Blood: 0.1 — шанс кровотечения от атак зомби почти равен нулю.', type: 'armor_modifier', defaultValue: { Health: 1.0, Blood: 1.0, Shock: 1.0 }, placement: 'DamageSystem.GlobalArmor.Infected' },
+            { key: 'durability', label: 'Durability Modifier', description: 'Множитель долговечности предмета. Влияет на то, как быстро предмет теряет прочность при использовании.', example: '1.0 — стандарт. 5.0 — предмет в 5 раз долговечнее.', type: 'number', defaultValue: 1.0, placement: 'DamageSystem.GlobalHealth' },
+        ]
+    },
+    {
+        id: 'sound',
+        title: 'Звуковые параметры',
+        description: 'Параметры взаимодействия предмета со звуковым движком игры.',
+        params: [
+            {
+                key: 'soundImpactType',
+                label: 'Impact Sound Type',
+                description: 'Тип звука при ударе предмета о поверхность (падение, бросок).',
+                type: 'select',
+                defaultValue: 'default',
+                placement: 'root',
+                selectOptions: [
+                    { value: 'default', label: 'Default', description: 'Стандартный звук.' },
+                    { value: 'metal', label: 'Metal', description: 'Звук удара металла.' },
+                    { value: 'plastic', label: 'Plastic', description: 'Звук удара пластика.' },
+                    { value: 'organic', label: 'Organic', description: 'Звук удара мягкого/органического материала.' },
+                    { value: 'glass', label: 'Glass', description: 'Звук удара стекла.' }
+                ]
+            },
+            {
+                key: 'soundVoiceType',
+                label: 'Voice Muffle Type',
+                description: 'Определяет эффект глушения голоса персонажа, когда на нем надет этот предмет.',
+                type: 'select',
+                defaultValue: 'none',
+                placement: 'root',
+                selectOptions: [
+                    { value: 'none', label: 'None', description: 'Без эффекта глушения.' },
+                    { value: 'gasmask', label: 'Gasmask', description: 'Эффект противогаза (затрудненное дыхание, глухой звук).' },
+                    { value: 'gag', label: 'Gag', description: 'Эффект кляпа (неразборчивая речь).' },
+                    { value: 'motohelmet', label: 'Moto Helmet', description: 'Эффект мотоциклетного шлема.' },
+                    { value: 'metalhelmet', label: 'Metal Helmet', description: 'Эффект стального шлема.' }
+                ]
+            },
+            {
+                key: 'soundVoicePriority',
+                label: 'Voice Muffle Priority',
+                description: 'Приоритет эффекта глушения. Если надето несколько предметов с эффектом, выберется тот, у кого приоритет выше.',
+                type: 'select',
+                defaultValue: 5,
+                placement: 'root',
+                selectOptions: [
+                    { value: '5', label: 'Low (5)', description: 'Низкий приоритет.' },
+                    { value: '10', label: 'Medium (10)', description: 'Средний приоритет.' },
+                    { value: '15', label: 'High (15)', description: 'Высокий приоритет (гарантированное перекрытие).' }
+                ]
+            },
         ]
     },
     {

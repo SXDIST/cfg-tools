@@ -44,7 +44,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Switch } from "./ui/switch";
 import { Button } from "./ui/button";
+import { MultiSelect } from "./ui/multi-select";
+import { ComboBox } from "./ui/combobox";
 
 // ─────────────────────────────────────────────
 // SHARED HELPERS
@@ -1085,8 +1088,41 @@ export function EditorPanel() {
     const updates: Record<string, boolean> = { [key]: checked };
     if (key === "male") updates["female"] = checked;
     if (key === "female") updates["male"] = checked;
+
+    const nextValues = { ...activeTab.values };
+    if (checked) {
+      const allParams = CATALOG.flatMap((category) => category.params);
+      const target = allParams.find((p) => p.key === key);
+      if (target && nextValues[key] === undefined && target.defaultValue !== undefined) {
+        nextValues[key] = target.defaultValue;
+      }
+
+      if (key === "male") {
+        const femaleParam = allParams.find((p) => p.key === "female");
+        if (
+          femaleParam &&
+          nextValues["female"] === undefined &&
+          femaleParam.defaultValue !== undefined
+        ) {
+          nextValues["female"] = femaleParam.defaultValue;
+        }
+      }
+
+      if (key === "female") {
+        const maleParam = allParams.find((p) => p.key === "male");
+        if (
+          maleParam &&
+          nextValues["male"] === undefined &&
+          maleParam.defaultValue !== undefined
+        ) {
+          nextValues["male"] = maleParam.defaultValue;
+        }
+      }
+    }
+
     updateActiveTab({
       enabledParams: { ...activeTab.enabledParams, ...updates },
+      values: nextValues,
     });
   };
 
@@ -1570,6 +1606,20 @@ export function EditorPanel() {
                                   />
                                 )}
 
+                                {param.type === "boolean" && (
+                                  <div className="h-9 px-3 rounded-md border border-input bg-transparent flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {Number(value) === 1 || value === true ? "1" : "0"}
+                                    </span>
+                                    <Switch
+                                      checked={Number(value) === 1 || value === true}
+                                      onCheckedChange={(checked) =>
+                                        handleValueChange(param.key, checked ? 1 : 0)
+                                      }
+                                    />
+                                  </div>
+                                )}
+
                                 {param.type === "armor_modifier" && (
                                   <div className="flex items-center gap-2">
                                     {["Health", "Blood", "Shock"].map(
@@ -1614,6 +1664,72 @@ export function EditorPanel() {
                                       ),
                                     )}
                                   </div>
+                                )}
+
+                                {param.type === "select" && (
+                                  <Select
+                                    value={value !== undefined ? String(value) : (param.defaultValue !== undefined ? String(param.defaultValue) : "")}
+                                    onValueChange={(val) => {
+                                      const numericVal = Number(val);
+                                      handleValueChange(param.key, isNaN(numericVal) ? val : numericVal);
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-sm">
+                                      <SelectValue placeholder="Выберите значение..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {param.selectOptions?.map((opt) => (
+                                        <SelectItem
+                                          key={String(opt.value)}
+                                          value={String(opt.value)}
+                                        >
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+
+                                {param.type === "multi-select" && (
+                                  <MultiSelect
+                                    options={(param.selectOptions as any) || []}
+                                    onChange={(vals: string[]) =>
+                                      handleValueChange(param.key, vals)
+                                    }
+                                    value={value || []}
+                                    placeholder="Выберите значения..."
+                                  />
+                                )}
+
+                                {param.type === "combobox" && (
+                                  <ComboBox
+                                    options={
+                                      (param.selectOptions || []).map((opt) => ({
+                                        label: opt.label,
+                                        value: String(opt.value),
+                                      }))
+                                    }
+                                    onChange={(val: string) =>
+                                      handleValueChange(param.key, val)
+                                    }
+                                    value={
+                                      Array.isArray(value)
+                                        ? String(value[0] || "")
+                                        : String(value ?? "")
+                                    }
+                                    placeholder="Выберите значение..."
+                                    allowCustom={param.key === "inventorySlot"}
+                                    searchPlaceholder={
+                                      param.key === "inventorySlot"
+                                        ? "Выберите или введите свой слот..."
+                                        : "Search..."
+                                    }
+                                    customOptionLabel={
+                                      param.key === "inventorySlot"
+                                        ? (customValue) => `Использовать свой слот: ${customValue}`
+                                        : undefined
+                                    }
+                                  />
                                 )}
 
                                 {param.type === "anim_event" && (

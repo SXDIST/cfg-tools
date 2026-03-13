@@ -1,9 +1,19 @@
 import { ConfigData, MainClassData } from './store';
 import { CATALOG } from './catalog';
 
+function toBooleanNumber(val: any): number {
+    if (val === true || val === 1 || val === '1') return 1;
+    return 0;
+}
+
 function formatValue(val: any, type: string): string {
     if (type === 'string') return `"${val}"`;
-    if (type === 'number' || type === 'boolean') return `${val}`; // boolean in C++ might need handling, but DayZ uses 1/0 usually. Assuming number.
+    if (type === 'combobox') return `"${val ?? ''}"`;
+    if (type === 'select') {
+        return typeof val === 'number' ? `${val}` : `"${val}"`;
+    }
+    if (type === 'number') return `${val}`;
+    if (type === 'boolean') return `${toBooleanNumber(val)}`;
     if (type === 'array_of_strings') {
         if (!Array.isArray(val)) return '{" "}';
         return `{${val.map(v => `"${v}"`).join(', ')}}`;
@@ -12,7 +22,7 @@ function formatValue(val: any, type: string): string {
         if (!Array.isArray(val)) return '{0}';
         return `{${val.join(', ')}}`;
     }
-    return `"${val}"`;
+    return typeof val === 'string' ? `"${val}"` : `${val}`;
 }
 
 // Render tree recursively
@@ -79,17 +89,28 @@ export function generateCpp(config: ConfigData): string {
             category.params.forEach(param => {
                 // If parameter is enabled in state
                 if (cls.enabledParams[param.key]) {
-                    const val = cls.values[param.key];
+                    let val = cls.values[param.key];
+                    if (val === undefined || val === null) {
+                        val = param.defaultValue;
+                    }
+                    if (param.type === 'combobox' && Array.isArray(val)) {
+                        val = val[0] ?? '';
+                    }
                     let isArrayProp = param.type.startsWith('array');
                     let formattedValue = formatValue(val, param.type);
 
                     // Special handling for inventorySlot & attachments array length = 1
+                    // inventorySlot is now a select (string), but we might want it as an array [] in config
                     if ((param.key === 'inventorySlot' || param.key === 'attachments') && isArrayProp) {
                         if (Array.isArray(val) && val.length === 1) {
                             isArrayProp = false; // remove []
                             formattedValue = `"${val[0]}"`;
                         }
                     }
+
+                    // If it's inventorySlot and it's a string (from select), we can force it to be a string or array.
+                    // Most DayZ configs use inventorySlot[] = {"SlotName"}; but some allow inventorySlot = "SlotName";
+                    // For now, let's keep it as is. If it's a string, isArrayProp is false, so it becomes inventorySlot = "Body";
 
                     const formatted = `${param.key}${isArrayProp ? '[]' : ''} = ${formattedValue};`;
 

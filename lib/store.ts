@@ -328,7 +328,7 @@ export const useAppStore = create<AppState>()(
                         weight: 4000,
                         itemSize: [3, 2],
                         itemsCargoSize: [10, 5],
-                        inventorySlot: ["Body"],
+                        inventorySlot: "Body",
                         attachments: ["PSZ9D_Pouch"],
                         itemInfo: ["Clothing", "Body"],
                         hiddenSelections: ["camo"],
