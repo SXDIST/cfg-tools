@@ -2,6 +2,7 @@
 
 import { useAppStore } from "@/lib/store";
 import { Button } from "./ui/button";
+import { useRef, type ChangeEvent } from "react";
 import {
   Download,
   Copy,
@@ -23,8 +24,10 @@ import {
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { generateCpp } from "@/lib/generator";
+import { importFromCppText } from "@/lib/import-utils";
 
 export function Header() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const configs = useAppStore((s) => s.configs);
   const activeConfigId = useAppStore((s) => s.activeConfigId);
   const activeConfig = configs.find((c) => c.id === activeConfigId);
@@ -33,6 +36,7 @@ export function Header() {
   const duplicateConfig = useAppStore((s) => s.duplicateConfig);
   const deleteConfig = useAppStore((s) => s.deleteConfig);
   const setActiveConfig = useAppStore((s) => s.setActiveConfig);
+  const importConfigFromCpp = useAppStore((s) => s.importConfigFromCpp);
 
   const handleExportCurrent = async () => {
     if (!activeConfig) return;
@@ -56,8 +60,37 @@ export function Header() {
     saveAs(blob, "configs.zip");
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const result = importFromCppText(importConfigFromCpp, text, file.name);
+      if (!result.success) {
+        window.alert(result.error || "Импорт не удался");
+      }
+    } catch {
+      window.alert("Не удалось прочитать файл");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-5 shrink-0 z-20">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".cpp,text/plain"
+        className="hidden"
+        onChange={handleImportFileChange}
+      />
+
       {/* ── Logo ── */}
       <div className="flex items-center gap-3">
         <div className="w-7 h-7 rounded-md bg-zinc-900 dark:bg-white flex items-center justify-center shrink-0">
@@ -100,6 +133,11 @@ export function Header() {
             <DropdownMenuItem onClick={() => addConfig()}>
               <Plus className="w-4 h-4 mr-2" />
               Новый проект
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onClick={handleImportClick}>
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Импортировать config.cpp
             </DropdownMenuItem>
 
             {activeConfig && (

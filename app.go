@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 )
 
 // App struct
@@ -18,4 +19,13 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+func (a *App) ReadTextFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { CATALOG } from './catalog';
+import { parseConfigCpp } from './cpp-importer';
 
 export interface ChildClassData {
     id: string;
@@ -49,6 +50,7 @@ export interface AppState {
     configs: ConfigData[];
     activeConfigId: string | null;
     addConfig: (name?: string) => void;
+    importConfigFromCpp: (cppText: string, fallbackName?: string) => { success: boolean; error?: string };
     duplicateConfig: (id: string) => void;
     renameConfig: (id: string, newName: string) => void;
     deleteConfig: (id: string) => void;
@@ -144,6 +146,57 @@ export const useAppStore = create<AppState>()(
                     configs: [...state.configs, newConfig],
                     activeConfigId: newConfig.id,
                 }));
+            },
+
+            importConfigFromCpp: (cppText, fallbackName = 'Imported Project') => {
+                try {
+                    const imported = parseConfigCpp(cppText, fallbackName);
+
+                    const firstTabId = uuidv4();
+                    const newConfig: ConfigData = {
+                        id: uuidv4(),
+                        name: imported.name || fallbackName,
+                        requiredAddons: imported.requiredAddons,
+                        activeTabId: firstTabId,
+                        slots: imported.slots.map(slot => ({
+                            id: uuidv4(),
+                            slotName: slot.slotName,
+                            displayName: slot.displayName,
+                            ghostIconSet: slot.ghostIconSet,
+                            ghostIconImage: slot.ghostIconImage,
+                        })),
+                        proxies: imported.proxies.map(proxy => ({
+                            id: uuidv4(),
+                            proxyName: proxy.proxyName,
+                            inventorySlots: proxy.inventorySlots,
+                        })),
+                        classes: imported.classes.map((cls, index) => ({
+                            id: index === 0 ? firstTabId : uuidv4(),
+                            className: cls.className,
+                            baseClass: cls.baseClass,
+                            enabledParams: cls.enabledParams,
+                            values: cls.values,
+                            children: cls.children.map((child) => ({
+                                id: uuidv4(),
+                                name: child.name,
+                                scope: child.scope,
+                                hiddenSelectionsTextures: child.hiddenSelectionsTextures,
+                                hiddenSelectionsMaterials: child.hiddenSelectionsMaterials,
+                                visibilityModifier: child.visibilityModifier,
+                            })),
+                        })),
+                    };
+
+                    set((state) => ({
+                        configs: [...state.configs, newConfig],
+                        activeConfigId: newConfig.id,
+                    }));
+
+                    return { success: true };
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Не удалось импортировать config.cpp';
+                    return { success: false, error: message };
+                }
             },
 
             duplicateConfig: (id) => {
