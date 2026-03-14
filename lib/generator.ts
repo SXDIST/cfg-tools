@@ -9,6 +9,10 @@ function toBooleanNumber(val: any): number {
 function formatValue(val: any, type: string): string {
     if (type === 'string') return `"${val}"`;
     if (type === 'combobox') return `"${val ?? ''}"`;
+    if (type === 'multi-select') {
+        if (!Array.isArray(val)) return '{}'; 
+        return `{${val.map((v: string) => `"${v}"`).join(', ')}}`;
+    }
     if (type === 'select') {
         return typeof val === 'number' ? `${val}` : `"${val}"`;
     }
@@ -103,12 +107,11 @@ export function generateCpp(config: ConfigData): string {
                     if (param.type === 'combobox' && Array.isArray(val)) {
                         val = val[0] ?? '';
                     }
-                    let isArrayProp = param.type.startsWith('array');
+                    let isArrayProp = param.type.startsWith('array') || param.type === 'multi-select';
                     let formattedValue = formatValue(val, param.type);
 
-                    // Special handling for inventorySlot & attachments array length = 1
-                    // inventorySlot is now a select (string), but we might want it as an array [] in config
-                    if ((param.key === 'inventorySlot' || param.key === 'attachments') && isArrayProp) {
+                    // Special handling for attachments with single value: remove [] for backward compat
+                    if (param.key === 'attachments' && isArrayProp) {
                         if (Array.isArray(val) && val.length === 1) {
                             isArrayProp = false; // remove []
                             formattedValue = `"${val[0]}"`;

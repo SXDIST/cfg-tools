@@ -1698,8 +1698,9 @@ export function EditorPanel() {
                                     onChange={(vals: string[]) =>
                                       handleValueChange(param.key, vals)
                                     }
-                                    value={value || []}
+                                    value={Array.isArray(value) ? value : value ? [String(value)] : []}
                                     placeholder="Выберите значения..."
+                                    allowCustom={param.key === "inventorySlot"}
                                   />
                                 )}
 

@@ -30,6 +30,7 @@ interface MultiSelectProps {
   onChange: (value: string[]) => void;
   placeholder?: string;
   className?: string;
+  allowCustom?: boolean;
 }
 
 export function MultiSelect({
@@ -38,8 +39,10 @@ export function MultiSelect({
   onChange,
   placeholder = "Select items...",
   className,
+  allowCustom = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
   const handleUnselect = (item: string) => {
     onChange(value.filter((i) => i !== item));
@@ -70,8 +73,10 @@ export function MultiSelect({
                   }}
                 >
                   {options.find((o) => o.value === item)?.label || item}
-                  <button
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         handleUnselect(item);
@@ -88,7 +93,7 @@ export function MultiSelect({
                     }}
                   >
                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
+                  </span>
                 </Badge>
               ))
             ) : (
@@ -100,9 +105,32 @@ export function MultiSelect({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command className="w-full">
-          <CommandInput placeholder="Search..." className="h-9" />
+          <CommandInput
+            placeholder="Search..."
+            className="h-9"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>
+              {allowCustom && search.trim() ? (
+                <button
+                  className="w-full px-3 py-2 text-sm text-left hover:bg-accent cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const trimmed = search.trim();
+                    if (trimmed && !value.includes(trimmed)) {
+                      onChange([...value, trimmed]);
+                    }
+                    setSearch("");
+                  }}
+                >
+                  Добавить: <span className="font-medium">{search.trim()}</span>
+                </button>
+              ) : (
+                "No results found."
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = value.includes(option.value);
@@ -131,6 +159,24 @@ export function MultiSelect({
                   </CommandItem>
                 );
               })}
+              {allowCustom && search.trim() && !options.some(o => o.value === search.trim()) && (
+                <CommandItem
+                  key="__custom__"
+                  value={search.trim()}
+                  onSelect={() => {
+                    const trimmed = search.trim();
+                    if (trimmed && !value.includes(trimmed)) {
+                      onChange([...value, trimmed]);
+                    }
+                    setSearch("");
+                  }}
+                >
+                  <div className="mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary opacity-50 [&_svg]:invisible">
+                    <Check className="h-3 w-3" />
+                  </div>
+                  <span>Добавить: <span className="font-medium">{search.trim()}</span></span>
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>

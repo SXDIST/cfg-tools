@@ -47,9 +47,9 @@ export const CATALOG: CategoryDef[] = [
             { 
                 key: 'inventorySlot', 
                 label: 'Inventory Slot', 
-                description: 'Слот экипировки персонажа, в который можно надеть данный предмет.', 
-                type: 'combobox', 
-                defaultValue: 'Headgear', 
+                description: 'Слот экипировки персонажа, в который можно надеть данный предмет. Можно указать несколько слотов.', 
+                type: 'multi-select', 
+                defaultValue: ['Headgear'], 
                 placement: 'root',
                 selectOptions: [
                     { value: 'Shoulder', label: 'Shoulder', description: 'Слот для основного оружия.' },
