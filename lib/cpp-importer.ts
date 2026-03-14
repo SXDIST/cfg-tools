@@ -274,6 +274,16 @@ function parsePrimitiveValue(rawValue: string, param: ParamDef): unknown {
         return value;
     }
 
+    if (param.type === 'multi-select') {
+        if (value.startsWith('{') && value.endsWith('}')) {
+            return parseQuotedStrings(value);
+        }
+        if (value.startsWith('"') && value.endsWith('"')) {
+            return [value.slice(1, -1)];
+        }
+        return value ? [value] : [];
+    }
+
     if (param.type === 'number') {
         const numeric = Number(value);
         return Number.isNaN(numeric) ? param.defaultValue : numeric;
@@ -552,7 +562,11 @@ export function parseConfigCpp(source: string, fallbackName = 'Imported Project'
             getPropertyValue(classDecl.node, 'hiddenSelectionsMaterials') ||
             getPropertyValue(classDecl.node, 'visibilityModifier');
 
-        if (classDecl.baseClass && mainByName.has(classDecl.baseClass) && hasRetextureProps) {
+        const hasOwnIdentity =
+            getPropertyValue(classDecl.node, 'displayName') ||
+            getPropertyValue(classDecl.node, 'model');
+
+        if (classDecl.baseClass && mainByName.has(classDecl.baseClass) && hasRetextureProps && !hasOwnIdentity) {
             const parent = mainByName.get(classDecl.baseClass)!;
             parent.children.push(parseChildClass(classDecl));
             continue;
