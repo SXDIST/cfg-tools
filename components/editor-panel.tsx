@@ -14,7 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { HelpCircle, ChevronDown, Plus, Trash, X, Copy } from "lucide-react";
+import { HelpCircle, ChevronDown, Plus, Trash, X, Copy, GripVertical } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -1038,6 +1038,8 @@ const DamageSystemSection = memo(function DamageSystemSection({
 export function EditorPanel() {
   const [openPopover, setOpenPopover] = useState(false);
   const [newAddonInput, setNewAddonInput] = useState("");
+  const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
+  const [dropTabIndex, setDropTabIndex] = useState<number | null>(null);
 
   const configs = useAppStore((s) => s.configs);
   const activeConfigId = useAppStore((s) => s.activeConfigId);
@@ -1048,6 +1050,7 @@ export function EditorPanel() {
   const deleteTab = useAppStore((s) => s.deleteTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const duplicateTab = useAppStore((s) => s.duplicateTab);
+  const moveTab = useAppStore((s) => s.moveTab);
   const updateActiveTab = useAppStore((s) => s.updateActiveTab);
   const setBaseClass = useAppStore((s) => s.setBaseClass);
   const applyPreset = useAppStore((s) => s.applyPreset);
@@ -1277,23 +1280,67 @@ export function EditorPanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Class tabs row */}
-              <div className="flex flex-wrap items-center gap-1">
-                {config.classes.map((cls) => (
+              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/40 p-1.5">
+                {config.classes.map((cls, index) => (
                   <div
                     key={cls.id}
-                    className={`group flex items-center h-8 px-3 rounded-md text-xs font-medium cursor-pointer border transition-all shrink-0 max-w-45 ${
+                    draggable={config.classes.length > 1}
+                    className={`group relative flex items-center h-8 pl-2 pr-2.5 rounded-md text-xs font-medium border transition-all duration-150 shrink-0 max-w-45 cursor-grab active:cursor-grabbing ${
                       config.activeTabId === cls.id
-                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow-sm"
-                        : "bg-white dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow-md"
+                        : "bg-white dark:bg-zinc-800/70 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-sm hover:-translate-y-px"
                     }`}
+                    style={{
+                      opacity: dragTabIndex === index ? 0.55 : 1,
+                      transform: dragTabIndex === index ? "scale(1.02)" : "scale(1)",
+                      zIndex: dragTabIndex === index ? 10 : 1,
+                    }}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", cls.id);
+                      setDragTabIndex(index);
+                      setDropTabIndex(index);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dropTabIndex !== index) {
+                        setDropTabIndex(index);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragTabIndex !== null && dragTabIndex !== index) {
+                        moveTab(config.id, dragTabIndex, index);
+                      }
+                      setDragTabIndex(null);
+                      setDropTabIndex(null);
+                    }}
+                    onDragEnd={() => {
+                      setDragTabIndex(null);
+                      setDropTabIndex(null);
+                    }}
                     onClick={() => setActiveTab(config.id, cls.id)}
                   >
+                    {dropTabIndex === index && dragTabIndex !== index && (
+                      <span className="absolute inset-0 rounded-md ring-2 ring-blue-400/70 dark:ring-blue-500/70 bg-blue-50/40 dark:bg-blue-500/10 pointer-events-none" />
+                    )}
+                    <GripVertical className="w-3.5 h-3.5 shrink-0 mr-1.5 opacity-35 group-hover:opacity-60 transition-opacity" />
                     <span className="truncate">
                       {cls.className || "NewClass"}
                     </span>
                     {config.classes.length > 1 && (
                       <button
+                        type="button"
+                        draggable={false}
                         className="ml-2 rounded-sm opacity-0 group-hover:opacity-70 hover:opacity-100! transition-all shrink-0"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteTab(config.id, cls.id);
@@ -1307,7 +1354,7 @@ export function EditorPanel() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="h-8 w-8 shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-dashed border-zinc-300/80 dark:border-zinc-700"
                   onClick={() => addTab(config.id)}
                   title="Добавить новый класс"
                 >

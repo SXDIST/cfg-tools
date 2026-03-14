@@ -63,6 +63,7 @@ export interface AppState {
     deleteTab: (configId: string, tabId: string) => void;
     setActiveTab: (configId: string, tabId: string) => void;
     duplicateTab: (configId: string, tabId: string) => void;
+    moveTab: (configId: string, fromIndex: number, toIndex: number) => void;
 
     // Active tab data actions
     updateActiveTab: (updates: Partial<MainClassData>) => void;
@@ -328,6 +329,29 @@ export const useAppStore = create<AppState>()(
                             }
                         }
                         return c;
+                    }),
+                }));
+            },
+
+            moveTab: (configId, fromIndex, toIndex) => {
+                set((state) => ({
+                    configs: state.configs.map((c) => {
+                        if (c.id !== configId) return c;
+                        if (fromIndex === toIndex) return c;
+                        if (
+                            fromIndex < 0 ||
+                            toIndex < 0 ||
+                            fromIndex >= c.classes.length ||
+                            toIndex >= c.classes.length
+                        ) {
+                            return c;
+                        }
+
+                        const classes = [...c.classes];
+                        const [moved] = classes.splice(fromIndex, 1);
+                        classes.splice(toIndex, 0, moved);
+
+                        return { ...c, classes };
                     }),
                 }));
             },
