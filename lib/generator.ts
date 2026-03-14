@@ -110,18 +110,6 @@ export function generateCpp(config: ConfigData): string {
                     let isArrayProp = param.type.startsWith('array') || param.type === 'multi-select';
                     let formattedValue = formatValue(val, param.type);
 
-                    // Special handling for attachments with single value: remove [] for backward compat
-                    if (param.key === 'attachments' && isArrayProp) {
-                        if (Array.isArray(val) && val.length === 1) {
-                            isArrayProp = false; // remove []
-                            formattedValue = `"${val[0]}"`;
-                        }
-                    }
-
-                    // If it's inventorySlot and it's a string (from select), we can force it to be a string or array.
-                    // Most DayZ configs use inventorySlot[] = {"SlotName"}; but some allow inventorySlot = "SlotName";
-                    // For now, let's keep it as is. If it's a string, isArrayProp is false, so it becomes inventorySlot = "Body";
-
                     const formatted = `${param.key}${isArrayProp ? '[]' : ''} = ${formattedValue};`;
 
                     if (param.type === 'armor_modifier') {
