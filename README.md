@@ -1,54 +1,303 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# cfg-tools
 
-## Getting Started
+cfg-tools - это десктопная утилита для моддинга DayZ, которая помогает создавать, редактировать, импортировать и экспортировать `config.cpp` через удобный визуальный интерфейс.
 
-First, run the development server:
+Программа ориентирована на быстрый рабочий цикл:
+
+1. Создать проект или импортировать существующий `config.cpp`.
+2. Настроить классы, параметры, слоты и прокси в форме.
+3. Получить готовый C++-конфиг в превью.
+4. Экспортировать один или несколько конфигов.
+
+---
+
+## Для чего нужна программа
+
+cfg-tools решает типичные проблемы ручного редактирования DayZ-конфигов:
+
+1. Ускоряет создание однотипных конфигураций экипировки, предметов и их вариаций.
+2. Уменьшает количество синтаксических ошибок в `config.cpp`.
+3. Упрощает работу с вложенными секциями (`DamageSystem`, `AnimEvents`, и т.д.).
+4. Позволяет хранить несколько проектов и экспортировать их пакетно.
+5. Позволяет импортировать уже существующий конфиг и продолжить редактирование в UI.
+
+---
+
+## На чем написана программа
+
+### Ядро и Desktop shell
+
+1. Go 1.25 (`go.mod`)
+2. Wails v2 (`github.com/wailsapp/wails/v2`)
+3. Desktop bootstrap и биндинг backend методов находятся в `main.go` и `app.go`.
+
+### Frontend
+
+1. Next.js 16 (App Router)
+2. React 19 + TypeScript
+3. Zustand для состояния и персистентности
+4. Tailwind CSS 4 + Radix UI/shadcn компоненты
+5. Monaco Editor для live preview
+
+### Библиотеки и утилиты
+
+1. `jszip` + `file-saver` для экспорта архивов и файлов
+2. `uuid` для генерации внутренних ID
+3. `zod` / `react-hook-form` / `@hookform/resolvers` в инфраструктуре форм
+
+---
+
+## Как устроена архитектура
+
+1. Frontend хранит все проекты в Zustand store (`lib/store.ts`).
+2. Генератор (`lib/generator.ts`) превращает текущее состояние в C++ текст `config.cpp`.
+3. Импортер (`lib/cpp-importer.ts`) парсит `config.cpp` и создаёт новый проект в сторе.
+4. Wails связывает frontend и Go backend.
+5. Go-метод `ReadTextFile` используется для drag-and-drop импорта файлов в desktop-режиме.
+6. Состояние проектов сохраняется через persist middleware (localStorage).
+
+---
+
+## Какие фреймворки и сборщики используются
+
+1. Frontend framework: Next.js.
+2. UI framework/patterns: React + Radix/shadcn + Tailwind.
+3. Frontend build: `next build`.
+4. Frontend dev server: `next dev`.
+5. Desktop framework: Wails v2.
+6. Desktop build/packaging: `wails build`.
+7. Wails конфигурация сборки frontend лежит в `wails.json`:
+8. `frontend:install` -> `npm install`
+9. `frontend:build` -> `npm run build`
+10. `frontend:dev:watcher` -> `npm run dev`
+
+---
+
+## Основные возможности
+
+1. Управление несколькими проектами (`Новый`, `Дублировать`, `Удалить`).
+2. Редактирование классов через вкладки.
+3. Перестановка табов классов drag-and-drop.
+4. Настройка базовых параметров, урона, материалов, анимационных событий и пр.
+5. Работа с `CfgSlots` и `CfgNonAIVehicles`.
+6. Live preview итогового C++ конфига.
+7. Экспорт текущего конфига в `.cpp`.
+8. Экспорт всех проектов в `.zip`.
+9. Импорт `config.cpp` из меню.
+10. Импорт `config.cpp` через drag-and-drop (Wails runtime).
+
+---
+
+## Ограничения импорта
+
+Импорт работает в строгом режиме и рассчитан на структуру, совместимую с генератором cfg-tools.
+
+Поддерживаемый каркас:
+
+1. `CfgPatches`
+2. `CfgVehicles`
+3. Опционально `CfgSlots`
+4. Опционально `CfgNonAIVehicles`
+
+Что важно понимать:
+
+1. Экзотические и сильно кастомные структуры могут не импортироваться.
+2. При несовместимом синтаксисе импорт завершится с ошибкой.
+3. При успешном импорте создаётся новый проект с новыми внутренними ID.
+
+---
+
+## Требования для сборки из исходников
+
+1. Windows (основной целевой сценарий проекта)
+2. Node.js 20+ и npm
+3. Go 1.25+
+4. Wails CLI v2
+
+Проверка окружения:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+node -v
+npm -v
+go version
+wails version
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Установка Wails CLI (если не установлен):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Import config.cpp
+## Запуск проекта в разработке
 
-`cfg-tools` supports importing a user `config.cpp` as a new project.
+### Вариант 1. Frontend-only (быстро проверить UI)
 
-- Entry points:
-	- `Проект -> Импортировать config.cpp`
-	- Drag-and-drop `.cpp` file into the app window (Wails runtime)
-- Import behavior:
-	- Creates a **new project**
-	- Regenerates all internal IDs to avoid collisions
-	- Switches active project to the imported one
+```bash
+npm install
+npm run dev
+```
 
-### Current MVP limitations
+Откройте:
 
-- Import is **strict** and targets the structure generated by this tool (`CfgPatches`, `CfgVehicles`, optional `CfgNonAIVehicles`, `CfgSlots`).
-- Arbitrary DayZ configs with custom/unknown deep structures may be rejected.
-- On incompatible syntax/structure, import fails fast with an error message.
+```text
+http://localhost:3000
+```
 
-## Learn More
+### Вариант 2. Desktop dev через Wails (рекомендуется)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+wails dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Что это даёт:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Запуск desktop-окна приложения.
+2. Доступ к runtime-функциям Wails.
+3. Проверка drag-and-drop импорта через Go bridge.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Сборка приложения из исходников
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Production desktop build
+
+```bash
+npm install
+wails build
+```
+
+Результат сборки обычно находится в директории `build/bin`.
+
+### Отдельная сборка frontend (если нужна)
+
+```bash
+npm run build
+npm run start
+```
+
+---
+
+## Как пользоваться программой
+
+### 1. Создание и выбор проекта
+
+1. Откройте меню `Проект` в верхней панели.
+2. Выберите `Новый проект`.
+3. При необходимости переключайтесь между открытыми проектами там же.
+
+### 2. Работа с классами
+
+1. В блоке `Классы` каждая вкладка - отдельный класс.
+2. Нажмите `+`, чтобы добавить класс.
+3. Изменяйте имя класса и базовый класс.
+4. Перетаскивайте вкладки мышью, чтобы менять порядок классов.
+
+### 3. Редактирование параметров
+
+1. Включайте нужные параметры чекбоксами.
+2. Заполняйте поля значений по категориям.
+3. Для `Inventory Slot` поддерживается выбор нескольких значений.
+
+### 4. Работа с CfgSlots и CfgNonAIVehicles
+
+1. Добавляйте/редактируйте слоты в секции `Слоты (CfgSlots)`.
+2. Добавляйте/редактируйте прокси в секции `Прокси объекты (CfgNonAIVehicles)`.
+
+### 5. Превью и экспорт
+
+1. Правая панель показывает live preview итогового `config.cpp`.
+2. В меню `Экспорт` можно скачать:
+3. `Текущий конфиг (.cpp)`
+4. `Все конфиги (.zip)`
+
+### 6. Импорт существующего config.cpp
+
+Варианты импорта:
+
+1. `Проект -> Импортировать config.cpp`
+2. Drag-and-drop `.cpp` файла в окно приложения (desktop runtime)
+
+Поведение:
+
+1. Создаётся новый проект.
+2. Активным становится импортированный проект.
+3. При ошибке выводится сообщение с причиной.
+
+---
+
+## Хранение данных
+
+1. Проекты хранятся локально через Zustand persist.
+2. Данные привязаны к локальному окружению пользователя.
+3. При очистке localStorage сохранённые проекты будут удалены.
+
+---
+
+## Структура проекта (кратко)
+
+1. `app` - страницы Next.js и корневая композиция UI.
+2. `components` - UI-компоненты редактора, хедера, превью и т.д.
+3. `components/ui` - базовые переиспользуемые UI-элементы.
+4. `lib/catalog.ts` - каталог параметров для формы.
+5. `lib/store.ts` - глобальное состояние, действия, persist.
+6. `lib/generator.ts` - генерация `config.cpp`.
+7. `lib/cpp-importer.ts` - парсер/импорт `config.cpp`.
+8. `main.go`, `app.go` - Wails backend и bridge методы.
+9. `wails.json` - конфигурация Wails и frontend hooks.
+
+---
+
+## Troubleshooting
+
+### `wails` не найден
+
+1. Убедитесь, что Wails CLI установлен.
+2. Проверьте, что `%GOPATH%/bin` или `%USERPROFILE%/go/bin` добавлен в PATH.
+
+### Ошибка импорта `config.cpp`
+
+1. Проверьте наличие `CfgPatches` и `CfgVehicles`.
+2. Проверьте синтаксис и закрытие скобок/точек с запятой.
+3. Учитывайте, что импорт строгий и не покрывает все произвольные конфиги DayZ.
+
+### Не работает drag-and-drop импорт
+
+1. Проверяйте в desktop-режиме Wails.
+2. В web-only режиме `npm run dev` runtime bridge недоступен.
+
+### Проблемы со сборкой frontend
+
+1. Удалите `node_modules` и переустановите зависимости:
+
+```bash
+rm -rf node_modules
+npm install
+```
+
+2. Повторите `npm run build`.
+
+---
+
+## Вклад в проект
+
+1. Создайте ветку под задачу.
+2. Внесите изменения.
+3. Проверьте сборку и линтер:
+
+```bash
+npm run lint
+npm run build
+wails build
+```
+
+4. Оформите PR с описанием изменений.
+
+---
+
+## Лицензия
+
+В репозитории на момент написания не добавлен отдельный файл лицензии. Если вы планируете публичное распространение, рекомендуется добавить `LICENSE` с выбранной моделью лицензирования.
