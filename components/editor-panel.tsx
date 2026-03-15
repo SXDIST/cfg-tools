@@ -11,7 +11,8 @@ import {
   CommandItem,
   CommandList,
 } from "./ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "./ui/dialog";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./ui/accordion";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { HelpCircle, ChevronDown, Plus, Trash, X, Copy, GripVertical } from "lucide-react";
@@ -85,27 +86,28 @@ const SlotsSection = memo(function SlotsSection({
   const deleteSlot = useAppStore((s) => s.deleteSlot);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Слоты (CfgSlots)</CardTitle>
-            <CardDescription>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="slots" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-semibold text-sm">Слоты (CfgSlots)</span>
+            <span className="text-xs text-zinc-500 font-normal">
               Определение слотов для прикрепления предметов.
-            </CardDescription>
+            </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0"
-            onClick={() => addSlot(configId)}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-3">
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => addSlot(configId)}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3">
           {slots.length === 0 && (
             <EmptyState message="Нет слотов. Нажмите «Добавить»." />
           )}
@@ -196,9 +198,10 @@ const SlotsSection = memo(function SlotsSection({
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -218,27 +221,28 @@ const ProxiesSection = memo(function ProxiesSection({
   const deleteProxy = useAppStore((s) => s.deleteProxy);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Прокси объекты (CfgNonAIVehicles)</CardTitle>
-            <CardDescription>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="proxies" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-semibold text-sm">Прокси объекты (CfgNonAIVehicles)</span>
+            <span className="text-xs text-zinc-500 font-normal">
               Объявление прикрепляемых частей (ProxyAttachment).
-            </CardDescription>
+            </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0"
-            onClick={() => addProxy(configId)}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-3">
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => addProxy(configId)}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3">
           {proxies.length === 0 && (
             <EmptyState message="Нет прокси. Нажмите «Добавить»." />
           )}
@@ -335,9 +339,10 @@ const ProxiesSection = memo(function ProxiesSection({
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -397,29 +402,30 @@ const RetexturesSection = memo(function RetexturesSection({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Варианты / Ретекстуры</CardTitle>
-            <CardDescription>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="retextures" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-semibold text-sm">Варианты / Ретекстуры</span>
+            <span className="text-xs text-zinc-500 font-normal">
               Дочерние классы, наследующие параметры этого класса.
-            </CardDescription>
+            </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0"
-            onClick={() =>
-              addChildClass(configId, tabId, `${className}_Variant`)
-            }
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-3">
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() =>
+                addChildClass(configId, tabId, `${className}_Variant`)
+              }
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3">
           {(!children || children.length === 0) && (
             <EmptyState message="Нет ретекстур. Нажмите «Добавить»." />
           )}
@@ -560,9 +566,10 @@ const RetexturesSection = memo(function RetexturesSection({
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -601,40 +608,41 @@ const AnimEventsSection = memo(function AnimEventsSection({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="animEvents" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
-              <CardTitle>Звуковые события (AnimEvents)</CardTitle>
+              <span className="font-semibold text-sm">Звуковые события (AnimEvents)</span>
               <SectionBadge label="Базовый класс" />
             </div>
-            <CardDescription>
+            <span className="text-xs text-zinc-500 font-normal">
               Звуки взаимодействия с предметом (SoundWeapon).
-            </CardDescription>
+            </span>
           </div>
-          {!isEnabled ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={() => handleToggleAll(true)}
-            >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-              onClick={() => handleToggleAll(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            {!isEnabled ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={() => handleToggleAll(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
+                onClick={() => handleToggleAll(false)}
+              >
+                <Trash className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         {!isEnabled ? (
           <EmptyState message="Нет добавленных звуков. Нажмите «Добавить»." />
         ) : (
@@ -676,8 +684,9 @@ const AnimEventsSection = memo(function AnimEventsSection({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -716,40 +725,41 @@ const ClothingTypesSection = memo(function ClothingTypesSection({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="clothingTypes" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
-              <CardTitle>Типы одежды (ClothingTypes)</CardTitle>
+              <span className="font-semibold text-sm">Типы одежды (ClothingTypes)</span>
               <SectionBadge label="Базовый класс" />
             </div>
-            <CardDescription>
-              Пути к моделям мужских и женских персонажей.
-            </CardDescription>
+            <span className="text-xs text-zinc-500 font-normal">
+             Пути к моделям мужских и женских персонажей.
+            </span>
           </div>
-          {!isEnabled ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={() => handleToggleAll(true)}
-            >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-              onClick={() => handleToggleAll(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            {!isEnabled ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={() => handleToggleAll(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
+                onClick={() => handleToggleAll(false)}
+              >
+                <Trash className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         {!isEnabled ? (
           <EmptyState message="Нет настроек. Нажмите «Добавить»." />
         ) : (
@@ -780,8 +790,9 @@ const ClothingTypesSection = memo(function ClothingTypesSection({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -842,40 +853,41 @@ const DamageSystemSection = memo(function DamageSystemSection({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
+    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+      <AccordionItem value="damageSystem" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
-              <CardTitle>Система урона (DamageSystem)</CardTitle>
+              <span className="font-semibold text-sm">Система урона (DamageSystem)</span>
               <SectionBadge label="Базовый класс" />
             </div>
-            <CardDescription>
+            <span className="text-xs text-zinc-500 font-normal">
               Здоровье, броня и модификаторы урона.
-            </CardDescription>
+            </span>
           </div>
-          {!isEnabled ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={() => handleToggleAll(true)}
-            >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-              onClick={() => handleToggleAll(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            {!isEnabled ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={() => handleToggleAll(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
+                onClick={() => handleToggleAll(false)}
+              >
+                <Trash className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         {!isEnabled ? (
           <EmptyState message="Нет настроек. Нажмите «Добавить»." />
         ) : (
@@ -1026,8 +1038,9 @@ const DamageSystemSection = memo(function DamageSystemSection({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 });
 
@@ -1036,7 +1049,9 @@ const DamageSystemSection = memo(function DamageSystemSection({
 // ─────────────────────────────────────────────
 
 export function EditorPanel() {
-  const [openPopover, setOpenPopover] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
+  const [searchParamQuery, setSearchParamQuery] = useState("");
   const [newAddonInput, setNewAddonInput] = useState("");
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
   const [dropTabIndex, setDropTabIndex] = useState<number | null>(null);
@@ -1431,9 +1446,9 @@ export function EditorPanel() {
                     Добавьте нужные параметры для генерации конфига.
                   </CardDescription>
                 </div>
-                {/* Accent "Add Parameter" button */}
-                <Popover open={openPopover} onOpenChange={setOpenPopover}>
-                  <PopoverTrigger asChild>
+                {/* Accent "Add Parameter" button (Dialog) */}
+                <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+                  <DialogTrigger asChild>
                     <Button
                       size="sm"
                       className="h-8 gap-1.5 shrink-0 bg-zinc-900 hover:bg-zinc-700 text-white dark:bg-zinc-100 dark:hover:bg-zinc-300 dark:text-zinc-900"
@@ -1441,69 +1456,154 @@ export function EditorPanel() {
                       <Plus className="w-3.5 h-3.5" />
                       Добавить параметр
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-75 p-0" align="end">
-                    <Command>
-                      <CommandInput
-                        placeholder="Поиск параметра..."
-                        className="h-9 text-xs"
-                      />
-                      <CommandList className="max-h-75">
-                        <CommandEmpty className="py-3 text-xs text-center text-zinc-500">
-                          Ничего не найдено.
-                        </CommandEmpty>
-                        {CATALOG.filter(
-                          (c) =>
-                            c.id !== "animEvents" &&
-                            c.id !== "damageSystem" &&
-                            c.id !== "clothingTypes",
-                        ).map((category) => {
-                          const unused = category.params.filter((p) => {
-                            if (
-                              p.key === "female" ||
-                              p.key === "proxyInventorySlot"
-                            )
-                              return false;
-                            return !activeTab.enabledParams[p.key];
-                          });
-                          if (unused.length === 0) return null;
-                          return (
-                            <CommandGroup
-                              key={category.id}
-                              heading={category.title}
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[700px] p-0 overflow-hidden flex flex-col h-[80vh] bg-white dark:bg-zinc-950">
+                    <DialogHeader className="p-4 pb-2 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                      <DialogTitle>Добавление параметра</DialogTitle>
+                      <DialogDescription>
+                        Выберите параметр для добавления в класс. Можно фильтровать по категориям или использовать поиск.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 flex overflow-hidden">
+                      {/* Sidebar / Categories */}
+                      <div className="w-[200px] border-r border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/30">
+                        <div className="p-3 font-semibold text-xs text-zinc-500 uppercase tracking-wider">Категории</div>
+                        <ScrollArea className="flex-1">
+                          <div className="px-2 pb-2 flex flex-col gap-1">
+                            <button
+                              className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                                activeCategoryFilter === null
+                                  ? "bg-zinc-200/50 dark:bg-zinc-800 font-medium"
+                                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400"
+                              }`}
+                              onClick={() => setActiveCategoryFilter(null)}
                             >
-                              {unused.map((param) => (
-                                <CommandItem
-                                  key={param.key}
-                                  onSelect={() => {
-                                    handleToggle(param.key, true);
-                                    setOpenPopover(false);
-                                  }}
-                                  className="text-xs flex flex-col items-start gap-0.5 py-2 cursor-pointer"
-                                >
-                                  <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                                    {param.key === "male"
-                                      ? "Male & Female Models"
-                                      : param.key === "proxyModelName"
-                                        ? "Proxy Model & Slots"
-                                        : param.label}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-500 line-clamp-1">
-                                    {param.key === "male"
-                                      ? "Добавить мужскую и женскую модели"
-                                      : param.key === "proxyModelName"
-                                        ? "Название прокси и слоты инвентаря"
-                                        : param.description}
-                                  </span>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          );
-                        })}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                              Все параметры
+                            </button>
+                            {CATALOG.filter(
+                              (c) =>
+                                c.id !== "animEvents" &&
+                                c.id !== "damageSystem" &&
+                                c.id !== "clothingTypes",
+                            ).map((category) => (
+                              <button
+                                key={category.id}
+                                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                                  activeCategoryFilter === category.id
+                                    ? "bg-zinc-200/50 dark:bg-zinc-800 font-medium"
+                                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400"
+                                }`}
+                                onClick={() => setActiveCategoryFilter(category.id)}
+                              >
+                                {category.title}
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+
+                      {/* Main Main List */}
+                      <div className="flex-1 flex flex-col bg-white dark:bg-zinc-950">
+                        <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                           <Input
+                             placeholder="Поиск параметра по имени или описанию..."
+                             className="h-9"
+                             value={searchParamQuery}
+                             onChange={(e) => setSearchParamQuery(e.target.value)}
+                           />
+                        </div>
+                        <ScrollArea className="flex-1">
+                          <div className="p-3 flex flex-col gap-5">
+                            {(() => {
+                               let totalFound = 0;
+                               const filteredCatalog = CATALOG.filter(
+                                 (c) =>
+                                   c.id !== "animEvents" &&
+                                   c.id !== "damageSystem" &&
+                                   c.id !== "clothingTypes" &&
+                                   (activeCategoryFilter === null || activeCategoryFilter === c.id)
+                               );
+
+                               return (
+                                 <>
+                                   {filteredCatalog.map((category) => {
+                                      const unused = category.params.filter((p) => {
+                                        if (p.key === "female" || p.key === "proxyInventorySlot") return false;
+                                        if (activeTab.enabledParams[p.key]) return false;
+
+                                        if (searchParamQuery.trim()) {
+                                          const query = searchParamQuery.toLowerCase();
+                                          const titleMatches = p.label.toLowerCase().includes(query);
+                                          const descMatches = p.description.toLowerCase().includes(query);
+                                          const keyMatches = p.key.toLowerCase().includes(query);
+                                          if (!titleMatches && !descMatches && !keyMatches) {
+                                            return false;
+                                          }
+                                        }
+                                        return true;
+                                      });
+
+                                      if (unused.length === 0) return null;
+                                      totalFound += unused.length;
+
+                                      return (
+                                        <div key={category.id}>
+                                          {activeCategoryFilter === null && (
+                                            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                                              {category.title}
+                                            </div>
+                                          )}
+                                          <div className="grid gap-2">
+                                            {unused.map((param) => (
+                                              <div
+                                                key={param.key}
+                                                className="group border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-all cursor-pointer flex items-center justify-between"
+                                                onClick={() => {
+                                                  handleToggle(param.key, true);
+                                                  setOpenDialog(false);
+                                                }}
+                                              >
+                                                <div>
+                                                  <div className="font-semibold text-zinc-900 dark:text-锌-100 text-sm mb-0.5">
+                                                    {param.key === "male"
+                                                      ? "Male & Female Models"
+                                                      : param.key === "proxyModelName"
+                                                        ? "Proxy Model & Slots"
+                                                        : param.label}
+                                                  </div>
+                                                  <div className="text-xs text-zinc-500">
+                                                    {param.key === "male"
+                                                      ? "Добавить мужскую и женскую модели"
+                                                      : param.key === "proxyModelName"
+                                                        ? "Название прокси и слоты инвентаря"
+                                                        : param.description}
+                                                  </div>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0 bg-white dark:bg-zinc-800 pointer-events-none">
+                                                   <Plus className="w-4 h-4 text-blue-500" />
+                                                </Button>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                   })}
+
+                                   {totalFound === 0 && (
+                                      <div className="py-10 text-center text-sm text-zinc-500">
+                                        По вашему запросу ничего не найдено.
+                                      </div>
+                                   )}
+                                 </>
+                               )
+                            })()}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
 
@@ -1991,6 +2091,8 @@ export function EditorPanel() {
               </TooltipProvider>
             </CardContent>
           </Card>
+          
+          <div className="flex flex-col gap-4">
 
           {/* ════════════════════════════════════
               BLOCKS 4-9 — SUB-SECTIONS
@@ -2027,6 +2129,7 @@ export function EditorPanel() {
             proxies={config.proxies || []}
             configId={config.id}
           />
+          </div>
         </div>
       </ScrollArea>
     </div>
