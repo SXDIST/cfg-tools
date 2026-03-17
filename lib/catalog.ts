@@ -44,12 +44,30 @@ export const CATALOG: CategoryDef[] = [
             { key: 'weight', label: 'Weight (g)', description: 'Вес предмета в граммах. Влияет на общую переносимую массу персонажа и затраты выносливости.', example: '1000 — вес равен 1 кг. 2500 — вес равен 2.5 кг.', type: 'number', defaultValue: 1000, placement: 'root' },
             { key: 'itemSize', label: 'Item Size', description: 'Занимаемое место предмета в инвентаре (ширина и высота в клетках).', example: '[2, 2] — предмет займет 2 клетки в ширину и 2 в высоту (всего 4).', type: 'array_of_numbers', defaultValue: [2, 2], placement: 'root' },
             { key: 'itemsCargoSize', label: 'Cargo Size', description: 'Размер внутреннего инвентаря самого предмета в клетках (ширина и высота).', example: '[5, 4] — внутри предмета сетка 5x4 (всего 20). [0, 0] — нет инвентаря.', type: 'array_of_numbers', defaultValue: [0, 0], placement: 'root' },
-            { 
-                key: 'inventorySlot', 
-                label: 'Inventory Slot', 
-                description: 'Слот экипировки персонажа, в который можно надеть данный предмет. Можно указать несколько слотов.', 
-                type: 'multi-select', 
-                defaultValue: ['Headgear'], 
+        ]
+    },
+    {
+        id: 'visual',
+        title: 'Модель и внешний вид',
+        description: 'Параметры модели, секций и материалов предмета.',
+        params: [
+            { key: 'itemInfo', label: 'Item Info Categories', description: 'Системные категории предмета, используемые игрой для логики сортировки или фильтрации.', example: '["Clothing", "Body"] для одежды, надеваемой на торс.', type: 'array_of_strings', defaultValue: ['Clothing'], placement: 'root' },
+            { key: 'hiddenSelections', label: 'Hidden Selections', description: 'Имена секций (областей) в 3D модели, на которые можно применять измененные текстуры и материалы.', example: '["camoGround", "zbytek"] — имена должны совпадать с заготовками в модели.', type: 'array_of_strings', defaultValue: ['camoGround'], placement: 'root' },
+            { key: 'hiddenSelectionsTextures', label: 'Textures', description: 'Пути к файлам текстур (.paa), которые будут применены поверх секций из hiddenSelections.', example: '["\\my_mod\\data\\co.paa"] — индексы текстур должны совпадать с hiddenSelections.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
+            { key: 'hiddenSelectionsMaterials', label: 'Materials', description: 'Пути к файлам материалов (.rvmat), которые будут применены поверх секций из hiddenSelections.', example: '["\\my_mod\\data\\mat.rvmat"] — настраивает качество поверхности и блики.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
+        ]
+    },
+    {
+        id: 'inventory',
+        title: 'Инвентарь и слоты',
+        description: 'Размеры, вес, слоты экипировки и вложения.',
+        params: [
+            {
+                key: 'inventorySlot',
+                label: 'Inventory Slot',
+                description: 'Слот экипировки персонажа, в который можно надеть данный предмет. Можно указать несколько слотов.',
+                type: 'multi-select',
+                defaultValue: ['Headgear'],
                 placement: 'root',
                 selectOptions: [
                     { value: 'Shoulder', label: 'Shoulder', description: 'Слот для основного оружия.' },
@@ -68,6 +86,15 @@ export const CATALOG: CategoryDef[] = [
                     { value: 'Handyman', label: 'Handyman', description: 'Слот для инструментов.' }
                 ]
             },
+            { key: 'attachments', label: 'Attachments', description: 'Доступные слоты на самом предмете, куда можно прикрепить другие предметы.', example: '["Chemlight", "WalkieTalkie"] — позволит прикрепить химсвет и рацию.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
+            { key: 'quickBarBonus', label: 'Quickbar Bonus Slots', description: 'Количество дополнительных слотов быстрого доступа, которые добавляет предмет при надевании.', example: '1, 2, 3 или 4. Например, разгрузочный жилет может добавлять 4 слота.', type: 'number', defaultValue: 0, placement: 'root' },
+        ]
+    },
+    {
+        id: 'repair',
+        title: 'Прочность и ремонт',
+        description: 'Параметры починки, расхода наборов и долговечности.',
+        params: [
             {
                 key: 'repairable',
                 label: 'Repairable',
@@ -80,18 +107,16 @@ export const CATALOG: CategoryDef[] = [
                     { value: '0', label: 'Нет', description: 'Предмет нельзя чинить.' }
                 ]
             },
-            { key: 'attachments', label: 'Attachments', description: 'Доступные слоты на самом предмете, куда можно прикрепить другие предметы.', example: '["Chemlight", "WalkieTalkie"] — позволит прикрепить химсвет и рацию.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
-            { key: 'itemInfo', label: 'Item Info Categories', description: 'Системные категории предмета, используемые игрой для логики сортировки или фильтрации.', example: '["Clothing", "Body"] для одежды, надеваемой на торс.', type: 'array_of_strings', defaultValue: ['Clothing'], placement: 'root' },
-            { key: 'hiddenSelections', label: 'Hidden Selections', description: 'Имена секций (областей) в 3D модели, на которые можно применять измененные текстуры и материалы.', example: '["camoGround", "zbytek"] — имена должны совпадать с заготовками в модели.', type: 'array_of_strings', defaultValue: ['camoGround'], placement: 'root' },
-            { key: 'hiddenSelectionsTextures', label: 'Textures', description: 'Пути к файлам текстур (.paa), которые будут применены поверх секций из hiddenSelections.', example: '["\\my_mod\\data\\co.paa"] — индексы текстур должны совпадать с hiddenSelections.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
-            { key: 'hiddenSelectionsMaterials', label: 'Materials', description: 'Пути к файлам материалов (.rvmat), которые будут применены поверх секций из hiddenSelections.', example: '["\\my_mod\\data\\mat.rvmat"] — настраивает качество поверхности и блики.', type: 'array_of_strings', defaultValue: [], placement: 'root' },
             { key: 'repairableWithKits', label: 'Repair Kits', description: 'ID ремонтных наборов, с помощью которых можно починить данный предмет.', example: '5 - швейный набор, 2 - набор для кожи, 3 - набор электрика.', type: 'array_of_numbers', defaultValue: [5, 2], placement: 'root' },
             { key: 'repairCosts', label: 'Repair Costs', description: 'Количество используемых ресурсов (в процентах) из ремонтного набора при починке этого предмета.', example: '[25, 30] — 1-й набор потратит 25% ресурса, 2-й набор — 30%.', type: 'array_of_numbers', defaultValue: [25, 25], placement: 'root' },
-            { key: 'varWetMax', label: 'Max Wetness', description: 'Максимальный уровень намокания предмета. Влияет на итоговый вес и теплоизоляцию под дождем.', example: '1.0 — предмет полностью промокает (100%). 0.0 — водонепроницаемый (0%).', type: 'number', defaultValue: 1.0, placement: 'root' },
-            { key: 'heatIsolation', label: 'Heat Isolation', description: 'Показатель теплоизоляции предмета. Влияет на то, насколько эффективно одежда согревает персонажа.', example: '0.1 — плохая изоляция (футболка), 0.9 — отличная изоляция (зимняя куртка).', type: 'number', defaultValue: 0.5, placement: 'root' },
-            { key: 'quickBarBonus', label: 'Quickbar Bonus Slots', description: 'Количество дополнительных слотов быстрого доступа, которые добавляет предмет при надевании.', example: '1, 2, 3 или 4. Например, разгрузочный жилет может добавлять 4 слота.', type: 'number', defaultValue: 0, placement: 'root' },
-            { key: 'visibilityModifier', label: 'Visibility Modifier', description: 'Модификатор заметности для ИИ (зомби и животных). Снижение значения усиливает камуфляж.', example: '1.0 — стандартная видимость, 0.8 — улучшенный камуфляж (-20% заметности).', type: 'number', defaultValue: 1.0, placement: 'root' },
             { key: 'durability', label: 'Durability Modifier', description: 'Множитель долговечности предмета. Влияет на то, как быстро предмет теряет прочность при использовании.', example: '1.0 — стандарт. 5.0 — предмет в 5 раз долговечнее.', type: 'number', defaultValue: 1.0, placement: 'root' },
+        ]
+    },
+    {
+        id: 'quantity',
+        title: 'Количество и стак',
+        description: 'Параметры количества, единиц измерения и полоски ресурса.',
+        params: [
             { key: 'varQuantityInit', label: 'Initial Quantity', description: 'Начальное количество ресурса/предметов в стеке при появлении предмета.', example: '250 — в предмете будет 250 единиц (например, патронов или прочности ткани).', type: 'number', defaultValue: 250, placement: 'root' },
             { key: 'varQuantityMin', label: 'Min Quantity', description: 'Минимально возможное количество ресурса в предмете.', example: '0 — стандарт для большинства предметов.', type: 'number', defaultValue: 0, placement: 'root' },
             { key: 'varQuantityMax', label: 'Max Quantity', description: 'Максимально возможное количество ресурса в предмете (полный стек).', example: '250 — максимальный объем.', type: 'number', defaultValue: 250, placement: 'root' },
@@ -112,7 +137,6 @@ export const CATALOG: CategoryDef[] = [
                 ]
             },
             { key: 'quantityBar', label: 'Show Quantity Bar', description: 'Отображать полоску количества предмета (прочность/объем) в инвентаре.', type: 'boolean', defaultValue: false, placement: 'root' },
-            { key: 'absorbency', label: 'Absorbency', description: 'Коэффициент впитывания влаги. Определяет, как быстро предмет тяжелеет и становится мокрым.', example: '0.0 — не впитывает, 0.5 — среднее впитывание.', type: 'number', defaultValue: 0.0, placement: 'root' },
         ]
     },
     {
@@ -120,6 +144,10 @@ export const CATALOG: CategoryDef[] = [
         title: 'Одежда и маскировка',
         description: 'Параметры скрытия частей тела и взаимодействия с другими элементами одежды.',
         params: [
+            { key: 'varWetMax', label: 'Max Wetness', description: 'Максимальный уровень намокания предмета. Влияет на итоговый вес и теплоизоляцию под дождем.', example: '1.0 — предмет полностью промокает (100%). 0.0 — водонепроницаемый (0%).', type: 'number', defaultValue: 1.0, placement: 'root' },
+            { key: 'heatIsolation', label: 'Heat Isolation', description: 'Показатель теплоизоляции предмета. Влияет на то, насколько эффективно одежда согревает персонажа.', example: '0.1 — плохая изоляция (футболка), 0.9 — отличная изоляция (зимняя куртка).', type: 'number', defaultValue: 0.5, placement: 'root' },
+            { key: 'visibilityModifier', label: 'Visibility Modifier', description: 'Модификатор заметности для ИИ (зомби и животных). Снижение значения усиливает камуфляж.', example: '1.0 — стандартная видимость, 0.8 — улучшенный камуфляж (-20% заметности).', type: 'number', defaultValue: 1.0, placement: 'root' },
+            { key: 'absorbency', label: 'Absorbency', description: 'Коэффициент впитывания влаги. Определяет, как быстро предмет тяжелеет и становится мокрым.', example: '0.0 — не впитывает, 0.5 — среднее впитывание.', type: 'number', defaultValue: 0.0, placement: 'root' },
             { key: 'noHelmet', label: 'No Helmet', description: 'Запретить надевание шлема вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },
             { key: 'noMask', label: 'No Mask', description: 'Запретить надевание маски вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },
             { key: 'noEyewear', label: 'No Eyewear', description: 'Запретить надевание очков вместе с этим предметом.', type: 'boolean', defaultValue: false, placement: 'root' },

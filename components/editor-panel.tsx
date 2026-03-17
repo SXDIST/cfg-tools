@@ -1457,7 +1457,7 @@ export function EditorPanel() {
                       Добавить параметр
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-[700px] p-0 overflow-hidden flex flex-col h-[80vh] bg-white dark:bg-zinc-950">
+                  <DialogContent className="!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-[min(1500px,calc(100vw-2rem))] sm:!max-w-[min(1500px,calc(100vw-2rem))] p-0 overflow-hidden flex flex-col h-[min(90vh,920px)] bg-white dark:bg-zinc-950">
                     <DialogHeader className="p-4 pb-2 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                       <DialogTitle>Добавление параметра</DialogTitle>
                       <DialogDescription>
@@ -1465,11 +1465,11 @@ export function EditorPanel() {
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex-1 flex overflow-hidden">
+                    <div className="flex min-h-0 flex-1 overflow-hidden">
                       {/* Sidebar / Categories */}
-                      <div className="w-[200px] border-r border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/30">
+                      <div className="w-[280px] border-r border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/30">
                         <div className="p-3 font-semibold text-xs text-zinc-500 uppercase tracking-wider">Категории</div>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="min-h-0 flex-1">
                           <div className="px-2 pb-2 flex flex-col gap-1">
                             <button
                               className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
@@ -1504,7 +1504,7 @@ export function EditorPanel() {
                       </div>
 
                       {/* Main Main List */}
-                      <div className="flex-1 flex flex-col bg-white dark:bg-zinc-950">
+                      <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950">
                         <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                            <Input
                              placeholder="Поиск параметра по имени или описанию..."
@@ -1513,10 +1513,9 @@ export function EditorPanel() {
                              onChange={(e) => setSearchParamQuery(e.target.value)}
                            />
                         </div>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="min-h-0 flex-1">
                           <div className="p-3 flex flex-col gap-5">
                             {(() => {
-                               let totalFound = 0;
                                const filteredCatalog = CATALOG.filter(
                                  (c) =>
                                    c.id !== "animEvents" &&
@@ -1524,28 +1523,34 @@ export function EditorPanel() {
                                    c.id !== "clothingTypes" &&
                                    (activeCategoryFilter === null || activeCategoryFilter === c.id)
                                );
+                               const sections = filteredCatalog.map((category) => {
+                                  const unused = category.params.filter((p) => {
+                                    if (p.key === "female" || p.key === "proxyInventorySlot") return false;
+                                    if (activeTab.enabledParams[p.key]) return false;
+
+                                    if (searchParamQuery.trim()) {
+                                      const query = searchParamQuery.toLowerCase();
+                                      const titleMatches = p.label.toLowerCase().includes(query);
+                                      const descMatches = p.description.toLowerCase().includes(query);
+                                      const keyMatches = p.key.toLowerCase().includes(query);
+                                      if (!titleMatches && !descMatches && !keyMatches) {
+                                        return false;
+                                      }
+                                    }
+                                    return true;
+                                  });
+
+                                  return { category, unused };
+                               });
+                               const totalFound = sections.reduce(
+                                 (sum, section) => sum + section.unused.length,
+                                 0,
+                               );
 
                                return (
                                  <>
-                                   {filteredCatalog.map((category) => {
-                                      const unused = category.params.filter((p) => {
-                                        if (p.key === "female" || p.key === "proxyInventorySlot") return false;
-                                        if (activeTab.enabledParams[p.key]) return false;
-
-                                        if (searchParamQuery.trim()) {
-                                          const query = searchParamQuery.toLowerCase();
-                                          const titleMatches = p.label.toLowerCase().includes(query);
-                                          const descMatches = p.description.toLowerCase().includes(query);
-                                          const keyMatches = p.key.toLowerCase().includes(query);
-                                          if (!titleMatches && !descMatches && !keyMatches) {
-                                            return false;
-                                          }
-                                        }
-                                        return true;
-                                      });
-
+                                   {sections.map(({ category, unused }) => {
                                       if (unused.length === 0) return null;
-                                      totalFound += unused.length;
 
                                       return (
                                         <div key={category.id}>
@@ -1565,7 +1570,7 @@ export function EditorPanel() {
                                                 }}
                                               >
                                                 <div>
-                                                  <div className="font-semibold text-zinc-900 dark:text-锌-100 text-sm mb-0.5">
+                                                  <div className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mb-0.5">
                                                     {param.key === "male"
                                                       ? "Male & Female Models"
                                                       : param.key === "proxyModelName"
