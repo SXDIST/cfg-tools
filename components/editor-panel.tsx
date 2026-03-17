@@ -819,6 +819,7 @@ export function EditorPanel() {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
+  const [enabledParamQuery, setEnabledParamQuery] = useState("");
   const [newAddonInput, setNewAddonInput] = useState("");
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
   const [dropTabIndex, setDropTabIndex] = useState<number | null>(null);
@@ -909,6 +910,47 @@ export function EditorPanel() {
       values: nextValues,
     });
   };
+
+  const normalizedEnabledParamQuery = enabledParamQuery.trim().toLowerCase();
+  const allEnabledParamCount = CATALOG.reduce(
+    (sum, category) =>
+      sum +
+      category.params.filter(
+        (p) =>
+          activeTab.enabledParams[p.key] &&
+          p.key !== "female" &&
+          p.key !== "proxyInventorySlot",
+      ).length,
+    0,
+  );
+
+  const parameterSections = CATALOG.map((category) => {
+    const enabledInCat = category.params.filter((p) => {
+      if (!activeTab.enabledParams[p.key]) return false;
+      if (p.key === "female" || p.key === "proxyInventorySlot") return false;
+
+      if (!normalizedEnabledParamQuery) return true;
+
+      const tiedSearchTerms =
+        p.key === "male"
+          ? ["female", "женская", "мужская", "models"]
+          : p.key === "proxyModelName"
+            ? ["proxyinventoryslot", "inventory slot", "slots"]
+            : [];
+
+      return [p.label, p.description, p.key, ...tiedSearchTerms]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedEnabledParamQuery);
+    });
+
+    return { category, enabledInCat };
+  }).filter((section) => section.enabledInCat.length > 0);
+
+  const filteredEnabledParamCount = parameterSections.reduce(
+    (sum, section) => sum + section.enabledInCat.length,
+    0,
+  );
 
   const handleValueChange = (key: string, value: unknown) => {
     updateActiveTab({ values: { ...activeTab.values, [key]: value } });
@@ -1374,31 +1416,79 @@ export function EditorPanel() {
             <CardContent>
               <TooltipProvider>
                 {/* Empty state */}
-                {CATALOG.every(
-                  (c) =>
-                    c.params.filter((p) => activeTab.enabledParams[p.key])
-                      .length === 0,
-                ) && (
+                {allEnabledParamCount === 0 && (
                   <EmptyState message="Нет добавленных параметров. Нажмите «Добавить параметр», чтобы начать." />
                 )}
 
                 {/* Parameter groups */}
-                <div className="flex flex-col gap-5">
-                  {CATALOG.map((category) => {
-                    const enabledInCat = category.params.filter(
-                      (p) => activeTab.enabledParams[p.key],
-                    );
-                    if (enabledInCat.length === 0) return null;
+                {allEnabledParamCount > 0 && (
+                  <div className="flex flex-col gap-4">
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/30 p-3">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            Быстрый поиск по добавленным параметрам
+                          </p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            Фильтр ищет по названию, ключу и описанию параметра.
+                          </p>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="w-fit rounded-full px-3 py-1 text-xs font-medium"
+                        >
+                          {filteredEnabledParamCount === allEnabledParamCount
+                            ? `Показано: ${allEnabledParamCount}`
+                            : `Показано: ${filteredEnabledParamCount} из ${allEnabledParamCount}`}
+                        </Badge>
+                      </div>
+                      <Input
+                        value={enabledParamQuery}
+                        onChange={(e) => setEnabledParamQuery(e.target.value)}
+                        placeholder="Найти среди уже добавленных параметров..."
+                        className="mt-3 h-9 bg-white dark:bg-zinc-950"
+                      />
+                    </div>
 
-                    return (
-                      <div key={category.id}>
-                        {/* Category label */}
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2 pl-0.5">
-                          {category.title}
-                        </p>
-
-                        <div className="flex flex-col gap-2">
-                          {enabledInCat.map((param) => {
+                    {filteredEnabledParamCount === 0 ? (
+                      <EmptyState message="По текущему фильтру ничего не найдено. Попробуйте изменить запрос или очистить поиск." />
+                    ) : (
+                      <Accordion
+                        type="multiple"
+                        defaultValue={parameterSections.map(
+                          (section) => section.category.id,
+                        )}
+                        className="flex flex-col gap-3"
+                      >
+                        {parameterSections.map(({ category, enabledInCat }) => (
+                          <AccordionItem
+                            key={category.id}
+                            value={category.id}
+                            className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm"
+                          >
+                            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/70">
+                              <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400 dark:text-zinc-500">
+                                    {category.title}
+                                  </p>
+                                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                                    {enabledInCat.length === 1
+                                      ? "1 параметр в этой группе"
+                                      : `${enabledInCat.length} параметров в этой группе`}
+                                  </p>
+                                </div>
+                                <Badge
+                                  variant="secondary"
+                                  className="shrink-0 rounded-full px-2.5 py-0.5 text-xs"
+                                >
+                                  {enabledInCat.length}
+                                </Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="border-t border-zinc-100 px-4 pb-4 pt-4 dark:border-zinc-800">
+                              <div className="flex flex-col gap-2">
+                                {enabledInCat.map((param) => {
                             if (
                               param.key === "female" ||
                               param.key === "proxyInventorySlot"
@@ -1441,7 +1531,7 @@ export function EditorPanel() {
                             return (
                               <div
                                 key={param.key}
-                                className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-3.5"
+                                className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/70 p-3.5"
                               >
                                 {/* Param header */}
                                 <div className="flex items-center justify-between mb-3">
@@ -1869,12 +1959,15 @@ export function EditorPanel() {
                                 )}
                               </div>
                             );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                                })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    )}
+                  </div>
+                )}
               </TooltipProvider>
             </CardContent>
           </Card>
