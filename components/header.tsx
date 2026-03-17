@@ -2,7 +2,7 @@
 
 import { useAppStore } from "@/lib/store";
 import { Button } from "./ui/button";
-import { useRef, type ChangeEvent } from "react";
+import { useEffect, useRef, type ChangeEvent } from "react";
 import {
   Download,
   Copy,
@@ -12,6 +12,8 @@ import {
   FolderOpen,
   FileCode2,
   ChevronDown,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,6 +39,10 @@ export function Header() {
   const deleteConfig = useAppStore((s) => s.deleteConfig);
   const setActiveConfig = useAppStore((s) => s.setActiveConfig);
   const importConfigFromCpp = useAppStore((s) => s.importConfigFromCpp);
+  const canUndo = useAppStore((s) => s.canUndo);
+  const canRedo = useAppStore((s) => s.canRedo);
+  const undo = useAppStore((s) => s.undo);
+  const redo = useAppStore((s) => s.redo);
 
   const handleExportCurrent = async () => {
     if (!activeConfig) return;
@@ -81,6 +87,37 @@ export function Header() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const hasPrimaryModifier = event.ctrlKey || event.metaKey;
+      if (!hasPrimaryModifier || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "z" && event.shiftKey) {
+        if (!canRedo) return;
+        event.preventDefault();
+        redo();
+        return;
+      }
+
+      if (key === "y") {
+        if (!canRedo) return;
+        event.preventDefault();
+        redo();
+        return;
+      }
+
+      if (key === "z") {
+        if (!canUndo) return;
+        event.preventDefault();
+        undo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canRedo, canUndo, redo, undo]);
+
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-5 shrink-0 z-20">
       <input
@@ -111,6 +148,28 @@ export function Header() {
 
       {/* ── Action buttons ── */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0 text-zinc-700 dark:text-zinc-300"
+          onClick={undo}
+          disabled={!canUndo}
+          title="Undo (Ctrl/Cmd+Z)"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0 text-zinc-700 dark:text-zinc-300"
+          onClick={redo}
+          disabled={!canRedo}
+          title="Redo (Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y)"
+        >
+          <Redo2 className="w-3.5 h-3.5" />
+        </Button>
+
         {/* Project dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -102,6 +102,10 @@ function normalizeKey(key: string): string {
     return key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 }
 
+function normalizeClassName(name: string): string {
+    return normalizeKey(name);
+}
+
 function resolveParamKey(key: string): string {
     const trimmed = key.trim();
     if (KNOWN_PARAM_KEYS.has(trimmed)) return trimmed;
@@ -114,10 +118,37 @@ function resolveParamKey(key: string): string {
 }
 
 function repairClassDeclarations(input: string): string {
-    return input.replace(
-        /(class\s+[A-Za-z0-9_]+\s*(?::\s*[A-Za-z0-9_]+)?)(\s*\n)(\s*)(?![;{])/g,
-        (_match, declaration: string, lineBreak: string, indentation: string) => `${declaration}${lineBreak}${indentation}{${lineBreak}${indentation}`,
-    );
+    const lines = input.split('\n');
+    const repaired: string[] = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        repaired.push(line);
+
+        const trimmed = line.trim();
+        if (!/^class\s+[A-Za-z0-9_]+\s*(?::\s*[A-Za-z0-9_]+)?$/.test(trimmed)) {
+            continue;
+        }
+
+        let lookahead = index + 1;
+        while (lookahead < lines.length && lines[lookahead].trim() === '') {
+            lookahead += 1;
+        }
+
+        if (lookahead >= lines.length) {
+            continue;
+        }
+
+        const nextTrimmed = lines[lookahead].trim();
+        if (nextTrimmed.startsWith('{') || nextTrimmed.startsWith(';')) {
+            continue;
+        }
+
+        const indentation = line.match(/^\s*/)![0];
+        repaired.push(`${indentation}{`);
+    }
+
+    return repaired.join('\n');
 }
 
 function balanceBraces(input: string): string {
@@ -353,11 +384,17 @@ function parseNode(text: string): ParsedNode {
 }
 
 function findClass(node: ParsedNode, className: string): ParsedClass | undefined {
-    return node.classes.find((item) => item.name === className && !item.declarationOnly);
+    const targetName = normalizeClassName(className);
+    return node.classes.find(
+        (item) => normalizeClassName(item.name) === targetName && !item.declarationOnly,
+    );
 }
 
 function findChildNode(node: ParsedNode, name: string): ParsedNode | undefined {
-    const child = node.classes.find((item) => item.name === name && !item.declarationOnly);
+    const targetName = normalizeClassName(name);
+    const child = node.classes.find(
+        (item) => normalizeClassName(item.name) === targetName && !item.declarationOnly,
+    );
     return child?.node;
 }
 
@@ -765,15 +802,19 @@ export function parseConfigCpp(source: string, fallbackName = 'Imported Project'
             getPropertyValue(classDecl.node, 'displayName') ||
             getPropertyValue(classDecl.node, 'model');
 
-        if (classDecl.baseClass && mainByName.has(classDecl.baseClass) && hasRetextureProps && !hasOwnIdentity) {
-            const parent = mainByName.get(classDecl.baseClass)!;
+        const normalizedBaseClass = classDecl.baseClass
+            ? normalizeClassName(classDecl.baseClass)
+            : null;
+
+        if (normalizedBaseClass && mainByName.has(normalizedBaseClass) && hasRetextureProps && !hasOwnIdentity) {
+            const parent = mainByName.get(normalizedBaseClass)!;
             parent.children.push(parseChildClass(classDecl));
             continue;
         }
 
         const mainClass = parseMainClass(classDecl);
         classes.push(mainClass);
-        mainByName.set(mainClass.className, mainClass);
+        mainByName.set(normalizeClassName(mainClass.className), mainClass);
     }
 
     if (classes.length === 0) {

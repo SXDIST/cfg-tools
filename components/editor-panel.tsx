@@ -10,14 +10,6 @@ import {
   CustomParamType,
 } from "@/lib/store";
 import { CATALOG } from "@/lib/catalog";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "./ui/command";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "./ui/dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./ui/accordion";
 import { Input } from "./ui/input";
@@ -35,7 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import {
@@ -54,20 +45,12 @@ import {
 } from "./ui/select";
 import { Switch } from "./ui/switch";
 import { Button } from "./ui/button";
-import { MultiSelect } from "./ui/multi-select";
+import { MultiSelect, type Option as MultiSelectOption } from "./ui/multi-select";
 import { ComboBox } from "./ui/combobox";
 
 // ─────────────────────────────────────────────
 // SHARED HELPERS
 // ─────────────────────────────────────────────
-
-function SectionBadge({ label }: { label: string }) {
-  return (
-    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 select-none">
-      {label}
-    </span>
-  );
-}
 
 function EmptyState({ message }: { message: string }) {
   return (
@@ -86,6 +69,12 @@ const CUSTOM_PARAM_TYPE_OPTIONS: {
   { value: "boolean", label: "Boolean" },
   { value: "array_of_strings", label: "String[]" },
   { value: "array_of_numbers", label: "Number[]" },
+];
+
+const SCOPE_OPTIONS = [
+  { value: "0", label: "0 - Base Class" },
+  { value: "1", label: "1 - Hidden" },
+  { value: "2", label: "2 - Public" },
 ];
 
 function getDefaultCustomParamValue(type: CustomParamType) {
@@ -601,12 +590,12 @@ const ProxiesSection = memo(function ProxiesSection({
 // ─────────────────────────────────────────────
 
 const RetexturesSection = memo(function RetexturesSection({
-  children,
+  childClasses,
   configId,
   tabId,
   className,
 }: {
-  children: ChildClassData[];
+  childClasses: ChildClassData[];
   configId: string;
   tabId: string;
   className: string;
@@ -621,7 +610,7 @@ const RetexturesSection = memo(function RetexturesSection({
     index: number,
     value: string,
   ) => {
-    const child = children?.find((c) => c.id === childId);
+    const child = childClasses?.find((c) => c.id === childId);
     if (!child) return;
     const newArray = [...(child[field] || [])];
     newArray[index] = value;
@@ -632,7 +621,7 @@ const RetexturesSection = memo(function RetexturesSection({
     childId: string,
     field: "hiddenSelectionsTextures" | "hiddenSelectionsMaterials",
   ) => {
-    const child = children?.find((c) => c.id === childId);
+    const child = childClasses?.find((c) => c.id === childId);
     if (!child) return;
     updateChildClass(configId, tabId, childId, {
       [field]: [...(child[field] || []), ""],
@@ -644,7 +633,7 @@ const RetexturesSection = memo(function RetexturesSection({
     field: "hiddenSelectionsTextures" | "hiddenSelectionsMaterials",
     index: number,
   ) => {
-    const child = children?.find((c) => c.id === childId);
+    const child = childClasses?.find((c) => c.id === childId);
     if (!child) return;
     const newArray = [...(child[field] || [])];
     newArray.splice(index, 1);
@@ -676,10 +665,10 @@ const RetexturesSection = memo(function RetexturesSection({
             </Button>
           </div>
           <div className="flex flex-col gap-3">
-          {(!children || children.length === 0) && (
+          {(!childClasses || childClasses.length === 0) && (
             <EmptyState message="Нет ретекстур. Нажмите «Добавить»." />
           )}
-          {children?.map((child) => (
+          {childClasses?.map((child) => (
             <div
               key={child.id}
               className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30 flex flex-col gap-3 relative group"
@@ -712,21 +701,20 @@ const RetexturesSection = memo(function RetexturesSection({
                   <Label className="text-xs text-zinc-500 mb-1 block">
                     Scope
                   </Label>
-                  <Input
-                    type="number"
-                    value={child.scope}
-                    min={0}
-                    max={2}
-                    onChange={(e) => {
+                  <ComboBox
+                    options={SCOPE_OPTIONS}
+                    value={String(child.scope ?? 2)}
+                    onChange={(selectedValue) => {
                       const val = Math.max(
                         0,
-                        Math.min(2, Number(e.target.value)),
+                        Math.min(2, Number(selectedValue || "2")),
                       );
                       updateChildClass(configId, tabId, child.id, {
                         scope: val,
                       });
                     }}
-                    className="h-8 text-sm font-mono"
+                    className="h-8 text-sm"
+                    searchPlaceholder="Выберите scope..."
                   />
                 </div>
                 <div className="w-28">
@@ -827,477 +815,6 @@ const RetexturesSection = memo(function RetexturesSection({
 // ANIM EVENTS SECTION
 // ─────────────────────────────────────────────
 
-const AnimEventsSection = memo(function AnimEventsSection({
-  enabledParams,
-  values,
-  configId,
-  tabId,
-}: {
-  enabledParams: Record<string, boolean>;
-  values: Record<string, any>;
-  configId: string;
-  tabId: string;
-}) {
-  const updateActiveTab = useAppStore((s) => s.updateActiveTab);
-  const animCategory = CATALOG.find((c) => c.id === "animEvents");
-  if (!animCategory) return null;
-
-  const allParams = animCategory.params;
-  const isEnabled = allParams.some((p) => enabledParams[p.key]);
-
-  const handleToggleAll = (enabled: boolean) => {
-    const updates: Record<string, boolean> = {};
-    allParams.forEach((p) => {
-      updates[p.key] = enabled;
-    });
-    updateActiveTab({ enabledParams: { ...enabledParams, ...updates } });
-  };
-
-  const handleValueChange = (key: string, value: any) => {
-    updateActiveTab({ values: { ...values, [key]: value } });
-  };
-
-  return (
-    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-      <AccordionItem value="animEvents" className="border-b-0">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
-          <div className="flex flex-col items-start gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">Звуковые события (AnimEvents)</span>
-              <SectionBadge label="Базовый класс" />
-            </div>
-            <span className="text-xs text-zinc-500 font-normal">
-              Звуки взаимодействия с предметом (SoundWeapon).
-            </span>
-          </div>
-        </AccordionTrigger>
-        <AccordionContent className="pt-0 pb-4 px-4">
-          <div className="flex justify-end mb-3">
-            {!isEnabled ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={() => handleToggleAll(true)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-                onClick={() => handleToggleAll(false)}
-              >
-                <Trash className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        {!isEnabled ? (
-          <EmptyState message="Нет добавленных звуков. Нажмите «Добавить»." />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {allParams.map((param) => {
-              const val = values[param.key] ?? param.defaultValue;
-              return (
-                <div key={param.key}>
-                  <Label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5 block">
-                    {param.label}
-                  </Label>
-                  <Select
-                    value={val?.soundSet || param.defaultValue?.soundSet || ""}
-                    onValueChange={(newSoundSet) => {
-                      const opt = param.options?.find(
-                        (o) => o.soundSet === newSoundSet,
-                      );
-                      if (opt) {
-                        handleValueChange(param.key, {
-                          soundSet: opt.soundSet,
-                          id: opt.id,
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Выберите звук..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {param.options?.map((opt) => (
-                        <SelectItem key={opt.soundSet} value={opt.soundSet}>
-                          {opt.label} ({opt.soundSet})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-});
-
-// ─────────────────────────────────────────────
-// CLOTHING TYPES SECTION
-// ─────────────────────────────────────────────
-
-const ClothingTypesSection = memo(function ClothingTypesSection({
-  enabledParams,
-  values,
-  configId,
-  tabId,
-}: {
-  enabledParams: Record<string, boolean>;
-  values: Record<string, any>;
-  configId: string;
-  tabId: string;
-}) {
-  const updateActiveTab = useAppStore((s) => s.updateActiveTab);
-  const clothCategory = CATALOG.find((c) => c.id === "clothingTypes");
-  if (!clothCategory) return null;
-
-  const allParams = clothCategory.params;
-  const isEnabled = allParams.some((p) => enabledParams[p.key]);
-
-  const handleToggleAll = (enabled: boolean) => {
-    const updates: Record<string, boolean> = {};
-    allParams.forEach((p) => {
-      updates[p.key] = enabled;
-    });
-    updateActiveTab({ enabledParams: { ...enabledParams, ...updates } });
-  };
-
-  const handleValueChange = (key: string, value: any) => {
-    updateActiveTab({ values: { ...values, [key]: value } });
-  };
-
-  return (
-    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-      <AccordionItem value="clothingTypes" className="border-b-0">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
-          <div className="flex flex-col items-start gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">Типы одежды (ClothingTypes)</span>
-              <SectionBadge label="Базовый класс" />
-            </div>
-            <span className="text-xs text-zinc-500 font-normal">
-             Пути к моделям мужских и женских персонажей.
-            </span>
-          </div>
-        </AccordionTrigger>
-        <AccordionContent className="pt-0 pb-4 px-4">
-          <div className="flex justify-end mb-3">
-            {!isEnabled ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={() => handleToggleAll(true)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-                onClick={() => handleToggleAll(false)}
-              >
-                <Trash className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        {!isEnabled ? (
-          <EmptyState message="Нет настроек. Нажмите «Добавить»." />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {allParams.map((param) => {
-              const value = values[param.key] ?? param.defaultValue;
-              return (
-                <div key={param.key}>
-                  <Label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5 block">
-                    {param.label}
-                  </Label>
-                  <Input
-                    value={value}
-                    onChange={(e) =>
-                      handleValueChange(param.key, e.target.value)
-                    }
-                    placeholder={param.description}
-                    className="h-8 text-sm font-mono"
-                  />
-                  {param.example && (
-                    <p className="text-[10px] text-zinc-400 mt-1">
-                      <span className="font-medium">Example:</span>{" "}
-                      {param.example}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-});
-
-// ─────────────────────────────────────────────
-// DAMAGE SYSTEM SECTION
-// ─────────────────────────────────────────────
-
-const DamageSystemSection = memo(function DamageSystemSection({
-  enabledParams,
-  values,
-  configId,
-  tabId,
-}: {
-  enabledParams: Record<string, boolean>;
-  values: Record<string, any>;
-  configId: string;
-  tabId: string;
-}) {
-  const updateActiveTab = useAppStore((s) => s.updateActiveTab);
-  const dmgCategory = CATALOG.find((c) => c.id === "damageSystem");
-  if (!dmgCategory) return null;
-
-  const allParams = dmgCategory.params;
-  const isEnabled = allParams.some((p) => enabledParams[p.key]);
-
-  const handleToggleAll = (enabled: boolean) => {
-    const updates: Record<string, boolean> = {};
-    allParams.forEach((p) => {
-      updates[p.key] = enabled;
-    });
-    updateActiveTab({ enabledParams: { ...enabledParams, ...updates } });
-  };
-
-  const handleToggleParam = (key: string, enabled: boolean) => {
-    updateActiveTab({
-      enabledParams: { ...enabledParams, [key]: enabled },
-    });
-  };
-
-  const handleValueChange = (key: string, value: any) => {
-    updateActiveTab({ values: { ...values, [key]: value } });
-  };
-
-  const handleArrayItemChange = (key: string, index: number, value: string) => {
-    const arr = [...(values[key] || [])];
-    arr[index] = value;
-    handleValueChange(key, arr);
-  };
-
-  const handleAddArrayItem = (key: string) => {
-    handleValueChange(key, [...(values[key] || []), ""]);
-  };
-
-  const handleRemoveArrayItem = (key: string, index: number) => {
-    const arr = [...(values[key] || [])];
-    arr.splice(index, 1);
-    handleValueChange(key, arr);
-  };
-
-  return (
-    <Accordion type="single" collapsible className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-      <AccordionItem value="damageSystem" className="border-b-0">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
-          <div className="flex flex-col items-start gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">Система урона (DamageSystem)</span>
-              <SectionBadge label="Базовый класс" />
-            </div>
-            <span className="text-xs text-zinc-500 font-normal">
-              Здоровье, броня и модификаторы урона.
-            </span>
-          </div>
-        </AccordionTrigger>
-        <AccordionContent className="pt-0 pb-4 px-4">
-          <div className="flex justify-end mb-3">
-            {!isEnabled ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={() => handleToggleAll(true)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-zinc-400 hover:text-red-500"
-                onClick={() => handleToggleAll(false)}
-              >
-                <Trash className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        {!isEnabled ? (
-          <EmptyState message="Нет настроек. Нажмите «Добавить»." />
-        ) : (
-          <div className="flex flex-col gap-5">
-            {allParams.map((param) => {
-              const value = values[param.key] ?? param.defaultValue;
-              const paramEnabled = !!enabledParams[param.key];
-              return (
-                <div key={param.key}>
-                  <div className="flex items-center gap-2 mb-2">
-                    {param.type === "armor_modifier" && (
-                      <Checkbox
-                        checked={paramEnabled}
-                        onCheckedChange={(checked) =>
-                          handleToggleParam(param.key, !!checked)
-                        }
-                      />
-                    )}
-                    <Label
-                      className={`text-xs font-medium ${
-                        paramEnabled
-                          ? "text-zinc-700 dark:text-zinc-300"
-                          : "text-zinc-400 dark:text-zinc-600"
-                      }`}
-                    >
-                      {param.label}
-                    </Label>
-                    {paramEnabled && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3.5 h-3.5 cursor-help text-zinc-400 hover:text-zinc-600 transition-colors" />
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            <p className="max-w-62.5 text-sm">
-                              {param.description}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-
-                  {paramEnabled && param.type === "number" && (
-                    <Input
-                      type="number"
-                      value={value}
-                      onChange={(e) =>
-                        handleValueChange(param.key, Number(e.target.value))
-                      }
-                      className="h-8 text-sm font-mono"
-                    />
-                  )}
-
-                  {paramEnabled && param.type === "array_of_strings" && (
-                    <div className="flex flex-col gap-2">
-                      {(value || []).map((item: string, idx: number) => (
-                        <div key={idx} className="flex items-center gap-1">
-                          <Input
-                            value={item}
-                            onChange={(e) =>
-                              handleArrayItemChange(
-                                param.key,
-                                idx,
-                                e.target.value,
-                              )
-                            }
-                            placeholder="path\\to\\file.rvmat"
-                            className="h-8 text-sm font-mono flex-1"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-zinc-400 hover:text-red-500"
-                            onClick={() =>
-                              handleRemoveArrayItem(param.key, idx)
-                            }
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      {(!value || value.length === 0) && (
-                        <p className="text-[10px] text-zinc-400 italic">
-                          Список пуст
-                        </p>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs self-start"
-                        onClick={() => handleAddArrayItem(param.key)}
-                      >
-                        <Plus className="w-3 h-3 mr-1" /> Добавить элемент
-                      </Button>
-                    </div>
-                  )}
-
-                  {paramEnabled && param.type === "armor_modifier" && (
-                    <div className="flex items-center gap-2">
-                      {["Health", "Blood", "Shock"].map((dmgType) => (
-                        <div
-                          key={dmgType}
-                          className="flex-1 flex flex-col gap-1"
-                        >
-                          <Label className="text-[10px] text-zinc-500 font-medium">
-                            {dmgType}
-                          </Label>
-                          <Input
-                            type="number"
-                            value={
-                              value?.[dmgType] !== undefined
-                                ? value[dmgType]
-                                : 1.0
-                            }
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            onChange={(e) => {
-                              const val = Math.max(
-                                0,
-                                Math.min(1, Number(e.target.value)),
-                              );
-                              handleValueChange(param.key, {
-                                ...(value || {
-                                  Health: 1.0,
-                                  Blood: 1.0,
-                                  Shock: 1.0,
-                                }),
-                                [dmgType]: val,
-                              });
-                            }}
-                            className="h-8 text-sm font-mono"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {paramEnabled && param.example && (
-                    <p className="text-[10px] text-zinc-400 mt-1">
-                      <span className="font-medium">Example:</span>{" "}
-                      {param.example}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-});
-
-// ─────────────────────────────────────────────
-// MAIN EDITOR PANEL
-// ─────────────────────────────────────────────
-
 export function EditorPanel() {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
@@ -1393,7 +910,7 @@ export function EditorPanel() {
     });
   };
 
-  const handleValueChange = (key: string, value: any) => {
+  const handleValueChange = (key: string, value: unknown) => {
     updateActiveTab({ values: { ...activeTab.values, [key]: value } });
   };
 
@@ -1427,7 +944,7 @@ export function EditorPanel() {
     handleValueChange(key, arr);
   };
 
-  const getArrayValueStr = (val: any) =>
+  const getArrayValueStr = (val: unknown) =>
     Array.isArray(val) ? val.join(", ") : "";
 
   const addAddon = () => {
@@ -1731,12 +1248,7 @@ export function EditorPanel() {
                             >
                               Все параметры
                             </button>
-                            {CATALOG.filter(
-                              (c) =>
-                                c.id !== "animEvents" &&
-                                c.id !== "damageSystem" &&
-                                c.id !== "clothingTypes",
-                            ).map((category) => (
+                            {CATALOG.map((category) => (
                               <button
                                 key={category.id}
                                 className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
@@ -1768,10 +1280,7 @@ export function EditorPanel() {
                             {(() => {
                                const filteredCatalog = CATALOG.filter(
                                  (c) =>
-                                   c.id !== "animEvents" &&
-                                   c.id !== "damageSystem" &&
-                                   c.id !== "clothingTypes" &&
-                                   (activeCategoryFilter === null || activeCategoryFilter === c.id)
+                                   activeCategoryFilter === null || activeCategoryFilter === c.id
                                );
                                const sections = filteredCatalog.map((category) => {
                                   const unused = category.params.filter((p) => {
@@ -1875,12 +1384,7 @@ export function EditorPanel() {
 
                 {/* Parameter groups */}
                 <div className="flex flex-col gap-5">
-                  {CATALOG.filter(
-                    (c) =>
-                      c.id !== "animEvents" &&
-                      c.id !== "damageSystem" &&
-                      c.id !== "clothingTypes",
-                  ).map((category) => {
+                  {CATALOG.map((category) => {
                     const enabledInCat = category.params.filter(
                       (p) => activeTab.enabledParams[p.key],
                     );
@@ -1906,7 +1410,7 @@ export function EditorPanel() {
 
                             // Tied params (male/female, proxyModelName/proxyInventorySlot)
                             let tiedParam: typeof param | null = null;
-                            let tiedValue: any = null;
+                            let tiedValue: unknown = null;
                             if (param.key === "male") {
                               tiedParam =
                                 category.params.find(
@@ -1924,6 +1428,15 @@ export function EditorPanel() {
                                 activeTab.values["proxyInventorySlot"] ??
                                 tiedParam?.defaultValue;
                             }
+
+                            const tiedInputValue =
+                              typeof tiedValue === "string" ||
+                              typeof tiedValue === "number"
+                                ? String(tiedValue)
+                                : "";
+                            const tiedArrayValue = Array.isArray(tiedValue)
+                              ? tiedValue.map((item) => String(item))
+                              : [];
 
                             return (
                               <div
@@ -1988,20 +1501,38 @@ export function EditorPanel() {
                                   />
                                 )}
 
-                                {param.type === "number" && (
+                                {param.type === "number" &&
+                                  param.key === "scope" && (
+                                  <ComboBox
+                                    options={SCOPE_OPTIONS}
+                                    value={String(value ?? param.defaultValue ?? 2)}
+                                    onChange={(selectedValue) => {
+                                      const val = Math.max(
+                                        0,
+                                        Math.min(
+                                          2,
+                                          Math.floor(
+                                            Number(selectedValue || "2"),
+                                          ),
+                                        ),
+                                      );
+                                      handleValueChange(param.key, val);
+                                    }}
+                                    className="h-8 text-sm"
+                                    searchPlaceholder="Выберите scope..."
+                                  />
+                                )}
+
+                                {param.type === "number" &&
+                                  param.key !== "scope" && (
                                   <Input
                                     type="number"
                                     value={value}
-                                    min={param.key === "scope" ? 0 : param.key === "visibilityModifier" ? 0 : undefined}
-                                    max={param.key === "scope" ? 2 : param.key === "visibilityModifier" ? 1 : undefined}
+                                    min={param.key === "visibilityModifier" ? 0 : undefined}
+                                    max={param.key === "visibilityModifier" ? 1 : undefined}
                                     step={param.key === "visibilityModifier" ? 0.01 : undefined}
                                     onChange={(e) => {
                                       let val = Number(e.target.value);
-                                      if (param.key === "scope")
-                                        val = Math.max(
-                                          0,
-                                          Math.min(2, Math.floor(val)),
-                                        );
                                       if (param.key === "visibilityModifier")
                                         val = Math.max(0, Math.min(1, val));
                                       handleValueChange(param.key, val);
@@ -2096,7 +1627,9 @@ export function EditorPanel() {
 
                                 {param.type === "multi-select" && (
                                   <MultiSelect
-                                    options={(param.selectOptions as any) || []}
+                                    options={
+                                      (param.selectOptions || []) as MultiSelectOption[]
+                                    }
                                     onChange={(vals: string[]) =>
                                       handleValueChange(param.key, vals)
                                     }
@@ -2267,7 +1800,7 @@ export function EditorPanel() {
 
                                     {tiedParam.type === "string" && (
                                       <Input
-                                        value={tiedValue}
+                                        value={tiedInputValue}
                                         onChange={(e) =>
                                           handleValueChange(
                                             tiedParam!.key,
@@ -2280,7 +1813,7 @@ export function EditorPanel() {
 
                                     {tiedParam.type === "array_of_strings" && (
                                       <div className="flex flex-col gap-2">
-                                        {(tiedValue || []).map(
+                                        {tiedArrayValue.map(
                                           (item: string, idx: number) => (
                                             <div
                                               key={idx}
@@ -2314,8 +1847,7 @@ export function EditorPanel() {
                                             </div>
                                           ),
                                         )}
-                                        {(!tiedValue ||
-                                          tiedValue.length === 0) && (
+                                        {tiedArrayValue.length === 0 && (
                                           <p className="text-[10px] text-zinc-400 italic">
                                             Список пуст
                                           </p>
@@ -2357,26 +1889,8 @@ export function EditorPanel() {
           {/* ════════════════════════════════════
               BLOCKS 4-9 — SUB-SECTIONS
           ════════════════════════════════════ */}
-          <ClothingTypesSection
-            enabledParams={activeTab.enabledParams}
-            values={activeTab.values}
-            configId={config.id}
-            tabId={activeTab.id}
-          />
-          <DamageSystemSection
-            enabledParams={activeTab.enabledParams}
-            values={activeTab.values}
-            configId={config.id}
-            tabId={activeTab.id}
-          />
-          <AnimEventsSection
-            enabledParams={activeTab.enabledParams}
-            values={activeTab.values}
-            configId={config.id}
-            tabId={activeTab.id}
-          />
           <RetexturesSection
-            children={activeTab.children || []}
+            childClasses={activeTab.children || []}
             configId={config.id}
             tabId={activeTab.id}
             className={activeTab.className}
@@ -2395,3 +1909,4 @@ export function EditorPanel() {
     </div>
   );
 }
+

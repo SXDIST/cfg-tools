@@ -60,9 +60,20 @@ export interface ConfigData {
     proxies: ProxyData[];
 }
 
+interface HistorySnapshot {
+    configs: ConfigData[];
+    activeConfigId: string | null;
+}
+
 export interface AppState {
     configs: ConfigData[];
     activeConfigId: string | null;
+    past: HistorySnapshot[];
+    future: HistorySnapshot[];
+    canUndo: boolean;
+    canRedo: boolean;
+    undo: () => void;
+    redo: () => void;
     addConfig: (name?: string) => void;
     importConfigFromCpp: (cppText: string, fallbackName?: string) => { success: boolean; error?: string };
     duplicateConfig: (id: string) => void;
@@ -128,11 +139,109 @@ const PRESET_PARAMS: Record<PresetName, string[]> = {
     ]
 };
 
+const HISTORY_LIMIT = 100;
+
+function createHistorySnapshot(state: Pick<AppState, 'configs' | 'activeConfigId'>): HistorySnapshot {
+    return {
+        configs: state.configs,
+        activeConfigId: state.activeConfigId,
+    };
+}
+
+function getHistoryFlags(state: Pick<AppState, 'past' | 'future'>) {
+    return {
+        canUndo: state.past.length > 0,
+        canRedo: state.future.length > 0,
+    };
+}
+
 export const useAppStore = create<AppState>()(
     persist(
-        (set, get) => ({
+        (set, get) => {
+            const setWithoutHistory = (
+                updater: Partial<AppState> | ((state: AppState) => Partial<AppState> | AppState)
+            ) => {
+                set((state) => {
+                    const partial = typeof updater === 'function' ? updater(state) : updater;
+                    return {
+                        ...state,
+                        ...partial,
+                        ...getHistoryFlags({
+                            past: partial.past ?? state.past,
+                            future: partial.future ?? state.future,
+                        }),
+                    };
+                });
+            };
+
+            const setWithHistory = (
+                updater: Partial<AppState> | ((state: AppState) => Partial<AppState> | null)
+            ) => {
+                set((state) => {
+                    const partial = typeof updater === 'function' ? updater(state) : updater;
+                    if (!partial) return state;
+
+                    const nextConfigs = partial.configs ?? state.configs;
+                    const nextActiveConfigId = partial.activeConfigId ?? state.activeConfigId;
+                    if (nextConfigs === state.configs && nextActiveConfigId === state.activeConfigId) {
+                        return state;
+                    }
+
+                    const past = [...state.past, createHistorySnapshot(state)].slice(-HISTORY_LIMIT);
+                    const future: HistorySnapshot[] = [];
+
+                    return {
+                        ...state,
+                        ...partial,
+                        past,
+                        future,
+                        ...getHistoryFlags({ past, future }),
+                    };
+                });
+            };
+
+            return ({
             configs: [],
             activeConfigId: null,
+            past: [],
+            future: [],
+            canUndo: false,
+            canRedo: false,
+
+            undo: () => {
+                setWithoutHistory((state) => {
+                    if (state.past.length === 0) return state;
+
+                    const previous = state.past[state.past.length - 1];
+                    const past = state.past.slice(0, -1);
+                    const future = [createHistorySnapshot(state), ...state.future].slice(0, HISTORY_LIMIT);
+
+                    return {
+                        ...state,
+                        configs: previous.configs,
+                        activeConfigId: previous.activeConfigId,
+                        past,
+                        future,
+                    };
+                });
+            },
+
+            redo: () => {
+                setWithoutHistory((state) => {
+                    if (state.future.length === 0) return state;
+
+                    const [next, ...future] = state.future;
+                    const past = [...state.past, createHistorySnapshot(state)].slice(-HISTORY_LIMIT);
+
+                    return {
+                        ...state,
+                        configs: next.configs,
+                        activeConfigId: next.activeConfigId,
+                        past,
+                        future,
+                    };
+                });
+            },
 
             addConfig: (name = 'New Project') => {
                 const initialTabId = uuidv4();
@@ -161,7 +270,7 @@ export const useAppStore = create<AppState>()(
                     ]
                 };
 
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: [...state.configs, newConfig],
                     activeConfigId: newConfig.id,
                 }));
@@ -213,7 +322,7 @@ export const useAppStore = create<AppState>()(
                         })),
                     };
 
-                    set((state) => ({
+                    setWithHistory((state) => ({
                         configs: [...state.configs, newConfig],
                         activeConfigId: newConfig.id,
                     }));
@@ -241,7 +350,7 @@ export const useAppStore = create<AppState>()(
                             children: cls.children.map(child => ({ ...child, id: uuidv4() }))
                         }))
                     };
-                    set((state) => ({
+                    setWithHistory((state) => ({
                         configs: [...state.configs, newConfig],
                         activeConfigId: newConfig.id,
                     }));
@@ -249,13 +358,13 @@ export const useAppStore = create<AppState>()(
             },
 
             renameConfig: (id, newName) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => (c.id === id ? { ...c, name: newName } : c)),
                 }));
             },
 
             deleteConfig: (id) => {
-                set((state) => {
+                setWithHistory((state) => {
                     const newConfigs = state.configs.filter((c) => c.id !== id);
                     const newActiveId = state.activeConfigId === id
                         ? (newConfigs.length > 0 ? newConfigs[0].id : null)
@@ -269,11 +378,11 @@ export const useAppStore = create<AppState>()(
             },
 
             setActiveConfig: (id) => {
-                set({ activeConfigId: id });
+                setWithHistory({ activeConfigId: id });
             },
 
             updateRequiredAddons: (configId, addons) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map(c =>
                         c.id === configId ? { ...c, requiredAddons: addons } : c
                     ),
@@ -298,7 +407,7 @@ export const useAppStore = create<AppState>()(
                     customParams: [],
                 };
 
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) =>
                         c.id === configId
                             ? { ...c, classes: [...c.classes, newClassData], activeTabId: newTabId }
@@ -308,7 +417,7 @@ export const useAppStore = create<AppState>()(
             },
 
             renameTab: (configId, tabId, newName) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) =>
                         c.id === configId
                             ? { ...c, classes: c.classes.map(cls => cls.id === tabId ? { ...cls, className: newName } : cls) }
@@ -318,7 +427,7 @@ export const useAppStore = create<AppState>()(
             },
 
             deleteTab: (configId, tabId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === configId) {
                             const newClasses = c.classes.filter(cls => cls.id !== tabId);
@@ -333,13 +442,13 @@ export const useAppStore = create<AppState>()(
             },
 
             setActiveTab: (configId, tabId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, activeTabId: tabId } : c),
                 }));
             },
 
             duplicateTab: (configId, tabId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === configId) {
                             const tabToCopy = c.classes.find(cls => cls.id === tabId);
@@ -361,7 +470,7 @@ export const useAppStore = create<AppState>()(
             },
 
             moveTab: (configId, fromIndex, toIndex) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id !== configId) return c;
                         if (fromIndex === toIndex) return c;
@@ -386,7 +495,7 @@ export const useAppStore = create<AppState>()(
             // --- ACTIVE TAB DATA ACTIONS ---
 
             updateActiveTab: (updates) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === state.activeConfigId && c.activeTabId) {
                             return {
@@ -400,7 +509,7 @@ export const useAppStore = create<AppState>()(
             },
 
             setBaseClass: (configId, tabId, baseClass) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) =>
                         c.id === configId
                             ? { ...c, classes: c.classes.map(cls => cls.id === tabId ? { ...cls, baseClass } : cls) }
@@ -475,7 +584,7 @@ export const useAppStore = create<AppState>()(
                     ];
                 }
 
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === state.activeConfigId && c.activeTabId) {
                             return {
@@ -505,7 +614,7 @@ export const useAppStore = create<AppState>()(
                     value: '',
                 };
 
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id !== configId) return c;
                         return {
@@ -521,7 +630,7 @@ export const useAppStore = create<AppState>()(
             },
 
             updateCustomParam: (configId, tabId, paramId, updates) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id !== configId) return c;
                         return {
@@ -541,7 +650,7 @@ export const useAppStore = create<AppState>()(
             },
 
             deleteCustomParam: (configId, tabId, paramId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id !== configId) return c;
                         return {
@@ -568,7 +677,7 @@ export const useAppStore = create<AppState>()(
                     hiddenSelectionsTextures: [],
                     hiddenSelectionsMaterials: [],
                 };
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === configId) {
                             return {
@@ -582,7 +691,7 @@ export const useAppStore = create<AppState>()(
             },
 
             updateChildClass: (configId, tabId, childId, updates) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === configId) {
                             return {
@@ -604,7 +713,7 @@ export const useAppStore = create<AppState>()(
             },
 
             deleteChildClass: (configId, tabId, childId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => {
                         if (c.id === configId) {
                             return {
@@ -635,19 +744,19 @@ export const useAppStore = create<AppState>()(
                     ghostIconSet: 'dayz_inventory',
                     ghostIconImage: '',
                 };
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, slots: [...(c.slots || []), newSlot] } : c)
                 }));
             },
 
             updateSlot: (configId, slotId, updates) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, slots: (c.slots || []).map(s => s.id === slotId ? { ...s, ...updates } : s) } : c)
                 }));
             },
 
             deleteSlot: (configId, slotId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, slots: (c.slots || []).filter(s => s.id !== slotId) } : c)
                 }));
             },
@@ -660,25 +769,30 @@ export const useAppStore = create<AppState>()(
                     proxyName: 'new_proxy',
                     inventorySlots: [],
                 };
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: [...(c.proxies || []), newProxy] } : c)
                 }));
             },
 
             updateProxy: (configId, proxyId, updates) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: (c.proxies || []).map(p => p.id === proxyId ? { ...p, ...updates } : p) } : c)
                 }));
             },
 
             deleteProxy: (configId, proxyId) => {
-                set((state) => ({
+                setWithHistory((state) => ({
                     configs: state.configs.map((c) => c.id === configId ? { ...c, proxies: (c.proxies || []).filter(p => p.id !== proxyId) } : c)
                 }));
             },
-        }),
+        });
+        },
         {
             name: 'cfg-tools-storage',
+            partialize: (state) => ({
+                configs: state.configs,
+                activeConfigId: state.activeConfigId,
+            }),
             storage: {
                 getItem: (name: string) => {
                     const str = localStorage.getItem(name);
@@ -746,3 +860,4 @@ export const useAppStore = create<AppState>()(
         }
     )
 );
+
