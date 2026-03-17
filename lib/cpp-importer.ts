@@ -1,4 +1,5 @@
 import { CATALOG, type ParamDef } from './catalog';
+import type { CustomParamData, CustomParamType } from './store';
 
 export interface ImportedChildClass {
     name: string;
@@ -14,6 +15,7 @@ export interface ImportedMainClass {
     enabledParams: Record<string, boolean>;
     values: Record<string, unknown>;
     children: ImportedChildClass[];
+    customParams: Omit<CustomParamData, 'id'>[];
 }
 
 export interface ImportedSlot {
@@ -49,6 +51,38 @@ interface ParsedNode {
 }
 
 const PARAMS = CATALOG.flatMap((category) => category.params);
+const KNOWN_PARAM_KEYS = new Set(PARAMS.map((param) => param.key));
+const NORMALIZED_PARAM_KEYS = new Map(
+    PARAMS.map((param) => [normalizeKey(param.key), param.key]),
+);
+const PARAM_ALIASES = new Map<string, string>([
+    ['displayname', 'displayName'],
+    ['descriptionshort', 'descriptionShort'],
+    ['iteminfos', 'itemInfo'],
+    ['iteminfocategories', 'itemInfo'],
+    ['hiddenselection', 'hiddenSelections'],
+    ['hiddenselections', 'hiddenSelections'],
+    ['hiddenselectiontexture', 'hiddenSelectionsTextures'],
+    ['hiddenselectiontextures', 'hiddenSelectionsTextures'],
+    ['hiddenselectionmaterial', 'hiddenSelectionsMaterials'],
+    ['hiddenselectionmaterials', 'hiddenSelectionsMaterials'],
+    ['inventoryslots', 'inventorySlot'],
+    ['quickbarbonus', 'quickBarBonus'],
+    ['repairablewithkit', 'repairableWithKits'],
+    ['repairablewithkits', 'repairableWithKits'],
+    ['repaircost', 'repairCosts'],
+    ['repaircosts', 'repairCosts'],
+    ['varwetmax', 'varWetMax'],
+    ['heatisolation', 'heatIsolation'],
+    ['visibilitymodifier', 'visibilityModifier'],
+    ['soundimpacttype', 'soundImpactType'],
+    ['soundvoicetype', 'soundVoiceType'],
+    ['soundvoicepriority', 'soundVoicePriority'],
+    ['pickupsoundset', 'pickUpSoundSet'],
+    ['dropsoundset', 'dropSoundSet'],
+    ['healthlevel', 'healthLevels'],
+    ['healthlevels', 'healthLevels'],
+]);
 
 function createDefaultValues(): Record<string, unknown> {
     const defaults: Record<string, unknown> = {};
@@ -62,6 +96,80 @@ function stripComments(input: string): string {
     return input
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/^\s*\/\/.*$/gm, '');
+}
+
+function normalizeKey(key: string): string {
+    return key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+function resolveParamKey(key: string): string {
+    const trimmed = key.trim();
+    if (KNOWN_PARAM_KEYS.has(trimmed)) return trimmed;
+
+    const normalized = normalizeKey(trimmed);
+    const aliasMatch = PARAM_ALIASES.get(normalized);
+    if (aliasMatch) return aliasMatch;
+
+    return NORMALIZED_PARAM_KEYS.get(normalized) || trimmed;
+}
+
+function repairClassDeclarations(input: string): string {
+    return input.replace(
+        /(class\s+[A-Za-z0-9_]+\s*(?::\s*[A-Za-z0-9_]+)?)(\s*\n)(\s*)(?![;{])/g,
+        (_match, declaration: string, lineBreak: string, indentation: string) => `${declaration}${lineBreak}${indentation}{${lineBreak}${indentation}`,
+    );
+}
+
+function balanceBraces(input: string): string {
+    let result = '';
+    let depth = 0;
+    let inString = false;
+
+    for (let cursor = 0; cursor < input.length; cursor += 1) {
+        const char = input[cursor];
+        const prevChar = cursor > 0 ? input[cursor - 1] : '';
+
+        if (char === '"' && prevChar !== '\\') {
+            inString = !inString;
+            result += char;
+            continue;
+        }
+
+        if (!inString) {
+            if (char === '{') {
+                depth += 1;
+                result += char;
+                continue;
+            }
+
+            if (char === '}') {
+                if (depth === 0) {
+                    continue;
+                }
+                depth -= 1;
+                result += char;
+                continue;
+            }
+        }
+
+        result += char;
+    }
+
+    if (depth > 0) {
+        result += `\n${'}'.repeat(depth)}`;
+    }
+
+    return result;
+}
+
+function repairCommonConfigIssues(input: string): string {
+    const normalized = input
+        .replace(/\r\n?/g, '\n')
+        .replace(/[“”„‟]/g, '"')
+        .replace(/[‘’‚‛]/g, "'")
+        .replace(/\t/g, '    ');
+
+    return balanceBraces(repairClassDeclarations(normalized));
 }
 
 function isIdentifierChar(char: string): boolean {
@@ -110,9 +218,33 @@ function readStatement(text: string, from: number): { statement: string; next: n
                 const statement = text.slice(from, cursor + 1).trim();
                 return { statement, next: cursor + 1 };
             }
+
+            if (char === '\n' && braceDepth === 0) {
+                const statement = text.slice(from, cursor).trim();
+                if (statement) {
+                    const next = skipWhitespace(text, cursor + 1);
+                    const nextSlice = text.slice(next, next + 5);
+                    const nextChar = text[next];
+                    const endsLikeValue = /["'\]\}0-9A-Za-z_]$/.test(statement);
+                    const nextStartsBoundary =
+                        next >= text.length ||
+                        nextChar === '}' ||
+                        nextSlice === 'class' ||
+                        /[A-Za-z_]/.test(nextChar || '');
+
+                    if (endsLikeValue && nextStartsBoundary) {
+                        return { statement: `${statement};`, next: cursor + 1 };
+                    }
+                }
+            }
         }
 
         cursor += 1;
+    }
+
+    const statement = text.slice(from).trim();
+    if (statement) {
+        return { statement: statement.endsWith(';') ? statement : `${statement};`, next: text.length };
     }
 
     throw new Error('Незавершенное выражение в config.cpp');
@@ -322,21 +454,87 @@ function parsePrimitiveValue(rawValue: string, param: ParamDef): unknown {
     return param.defaultValue;
 }
 
-function getPropertyValue(node: ParsedNode, key: string): { isArray: boolean; value: string } | null {
-    const arrayPrefix = `${key}[]`;
-    const scalarPrefix = `${key}`;
+function parsePropertyLine(prop: string): { key: string; isArray: boolean; value: string } | null {
+    const trimmed = prop.trim().replace(/;$/, '');
+    const match = /^([A-Za-z0-9_]+)(\[\])?\s*=\s*([\s\S]+)$/.exec(trimmed);
+    if (!match) return null;
 
+    return {
+        key: resolveParamKey(match[1]),
+        isArray: Boolean(match[2]),
+        value: match[3].trim(),
+    };
+}
+
+function inferCustomParamType(value: string, isArray: boolean): CustomParamType {
+    if (isArray) {
+        const items = value.trim().replace(/^\{|\}$/g, '').split(',').map((item) => item.trim()).filter(Boolean);
+        const isNumericArray = items.length > 0 && items.every((item) => /^-?\d+(?:\.\d+)?$/.test(item));
+        return isNumericArray ? 'array_of_numbers' : 'array_of_strings';
+    }
+
+    if (/^(?:0|1|true|false)$/i.test(value)) {
+        return 'boolean';
+    }
+
+    if (/^-?\d+(?:\.\d+)?$/.test(value)) {
+        return 'number';
+    }
+
+    return 'string';
+}
+
+function parseCustomParamValue(value: string, type: CustomParamType): unknown {
+    const tempParam = {
+        key: '__custom__',
+        label: '__custom__',
+        description: '',
+        type,
+        defaultValue:
+            type === 'boolean' ? false :
+            type === 'number' ? 0 :
+            type === 'array_of_strings' || type === 'array_of_numbers' ? [] :
+            '',
+    } satisfies ParamDef;
+
+    return parsePrimitiveValue(value, tempParam);
+}
+
+function collectCustomParams(node: ParsedNode, placement = 'root'): Omit<CustomParamData, 'id'>[] {
+    const customParams: Omit<CustomParamData, 'id'>[] = [];
+
+    node.props.forEach((prop) => {
+        const parsed = parsePropertyLine(prop);
+        if (!parsed) return;
+        if (KNOWN_PARAM_KEYS.has(parsed.key)) return;
+        if (parsed.key === 'soundSet' || parsed.key === 'id' || parsed.key === 'damage') return;
+        if (parsed.key === 'healthLevels') return;
+
+        const type = inferCustomParamType(parsed.value, parsed.isArray);
+        customParams.push({
+            key: parsed.key,
+            type,
+            placement,
+            value: parseCustomParamValue(parsed.value, type),
+        });
+    });
+
+    node.classes
+        .filter((child) => !child.declarationOnly && child.node)
+        .forEach((child) => {
+            const nextPlacement = placement === 'root' ? child.name : `${placement}.${child.name}`;
+            customParams.push(...collectCustomParams(child.node!, nextPlacement));
+        });
+
+    return customParams;
+}
+
+function getPropertyValue(node: ParsedNode, key: string): { isArray: boolean; value: string } | null {
     for (const prop of node.props) {
-        const normalized = prop.trim();
-        if (normalized.startsWith(arrayPrefix)) {
-            const rawValue = normalized.slice(arrayPrefix.length).trim().replace(/^=\s*/, '').replace(/;$/, '');
-            return { isArray: true, value: rawValue };
-        }
-        if (normalized.startsWith(scalarPrefix) && normalized[scalarPrefix.length] !== '_') {
-            const remainder = normalized.slice(scalarPrefix.length).trim();
-            if (!remainder.startsWith('=')) continue;
-            const rawValue = remainder.replace(/^=\s*/, '').replace(/;$/, '');
-            return { isArray: false, value: rawValue };
+        const parsed = parsePropertyLine(prop);
+        if (!parsed) continue;
+        if (parsed.key === key) {
+            return { isArray: parsed.isArray, value: parsed.value };
         }
     }
 
@@ -452,6 +650,7 @@ function parseMainClass(classDecl: ParsedClass): ImportedMainClass {
         enabledParams,
         values,
         children: [],
+        customParams: collectCustomParams(classDecl.node),
     };
 }
 
@@ -532,7 +731,7 @@ function parseProxies(cfgNonAIVehiclesNode?: ParsedNode): ImportedProxy[] {
 }
 
 export function parseConfigCpp(source: string, fallbackName = 'Imported Project'): ImportedConfig {
-    const cleanSource = stripComments(source).trim();
+    const cleanSource = repairCommonConfigIssues(stripComments(source)).trim();
     if (!cleanSource) {
         throw new Error('Файл пустой');
     }
@@ -541,13 +740,13 @@ export function parseConfigCpp(source: string, fallbackName = 'Imported Project'
     const cfgPatches = findClass(root, 'CfgPatches')?.node;
     const cfgVehicles = findClass(root, 'CfgVehicles')?.node;
 
-    if (!cfgPatches || !cfgVehicles) {
-        throw new Error('Поддерживается только формат config.cpp, сгенерированный cfg-tools');
+    if (!cfgVehicles) {
+        throw new Error('В config.cpp не найден `CfgVehicles`, поэтому импорт невозможен');
     }
 
-    const patchClass = cfgPatches.classes.find((entry) => !entry.declarationOnly);
+    const patchClass = cfgPatches?.classes.find((entry) => !entry.declarationOnly);
     const projectName = patchClass?.name || fallbackName;
-    const requiredAddons = parseRequiredAddons(cfgPatches);
+    const requiredAddons = cfgPatches ? parseRequiredAddons(cfgPatches) : ['DZ_Data', 'DZ_Characters'];
 
     const classes: ImportedMainClass[] = [];
     const mainByName = new Map<string, ImportedMainClass>();

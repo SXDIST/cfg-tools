@@ -1,4 +1,4 @@
-import { ConfigData } from './store';
+import { ConfigData, CustomParamData } from './store';
 import { CATALOG } from './catalog';
 
 function toBooleanNumber(val: any): number {
@@ -27,6 +27,32 @@ function formatValue(val: any, type: string): string {
         return `{${val.join(', ')}}`;
     }
     return typeof val === 'string' ? `"${val}"` : `${val}`;
+}
+
+function pushProperty(tree: any, placement: string | undefined, property: string) {
+    if (!placement || placement === 'root') {
+        tree._props.push(property);
+        return;
+    }
+
+    const parts = placement.split('.').filter(Boolean);
+    let currentLevel = tree;
+    parts.forEach((part) => {
+        if (!currentLevel[part]) {
+            currentLevel[part] = { _props: [] };
+        }
+        currentLevel = currentLevel[part];
+    });
+    currentLevel._props.push(property);
+}
+
+function formatCustomParam(param: CustomParamData): string | null {
+    const key = param.key.trim();
+    if (!key) return null;
+
+    const isArrayProp = param.type === 'array_of_strings' || param.type === 'array_of_numbers';
+    const formattedValue = formatValue(param.value, param.type);
+    return `${key}${isArrayProp ? '[]' : ''} = ${formattedValue};`;
 }
 
 // Render tree recursively
@@ -174,18 +200,16 @@ export function generateCpp(config: ConfigData): string {
                     } else if (param.placement === 'root') {
                         tree._props.push(formatted);
                     } else if (param.placement && param.placement !== 'root') {
-                        const parts = param.placement.split('.');
-                        let currentLevel = tree;
-                        parts.forEach(part => {
-                            if (!currentLevel[part]) {
-                                currentLevel[part] = { _props: [] };
-                            }
-                            currentLevel = currentLevel[part];
-                        });
-                        currentLevel._props.push(formatted);
+                        pushProperty(tree, param.placement, formatted);
                     }
                 }
             });
+        });
+
+        (cls.customParams || []).forEach((param) => {
+            const formatted = formatCustomParam(param);
+            if (!formatted) return;
+            pushProperty(tree, param.placement, formatted);
         });
 
         out += `\n  class ${className}: ${baseClass}\n  {\n`;

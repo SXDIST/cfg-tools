@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, memo } from "react";
-import { useAppStore, ChildClassData, SlotData, ProxyData } from "@/lib/store";
+import {
+  useAppStore,
+  ChildClassData,
+  SlotData,
+  ProxyData,
+  CustomParamData,
+  CustomParamType,
+} from "@/lib/store";
 import { CATALOG } from "@/lib/catalog";
 import {
   Command,
@@ -69,6 +76,249 @@ function EmptyState({ message }: { message: string }) {
     </div>
   );
 }
+
+const CUSTOM_PARAM_TYPE_OPTIONS: {
+  value: CustomParamType;
+  label: string;
+}[] = [
+  { value: "string", label: "String" },
+  { value: "number", label: "Number" },
+  { value: "boolean", label: "Boolean" },
+  { value: "array_of_strings", label: "String[]" },
+  { value: "array_of_numbers", label: "Number[]" },
+];
+
+function getDefaultCustomParamValue(type: CustomParamType) {
+  switch (type) {
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    case "array_of_strings":
+    case "array_of_numbers":
+      return [];
+    case "string":
+    default:
+      return "";
+  }
+}
+
+function parseCustomArrayValue(type: CustomParamType, value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) =>
+      type === "array_of_numbers" ? Number(item) : item,
+    )
+    .filter((item) =>
+      type === "array_of_numbers" ? !Number.isNaN(item as number) : true,
+    );
+}
+
+const CustomParamsSection = memo(function CustomParamsSection({
+  customParams,
+  configId,
+  tabId,
+}: {
+  customParams: CustomParamData[];
+  configId: string;
+  tabId: string;
+}) {
+  const addCustomParam = useAppStore((s) => s.addCustomParam);
+  const updateCustomParam = useAppStore((s) => s.updateCustomParam);
+  const deleteCustomParam = useAppStore((s) => s.deleteCustomParam);
+
+  return (
+    <Accordion
+      type="single"
+      collapsible
+      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+    >
+      <AccordionItem value="custom-params" className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-semibold text-sm">
+              Пользовательские параметры
+            </span>
+            <span className="text-xs text-zinc-500 font-normal">
+              Любые свои поля, которых нет в стандартном каталоге.
+            </span>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="pt-0 pb-4 px-4">
+          <div className="flex justify-end mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => addCustomParam(configId, tabId)}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить параметр
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {customParams.length === 0 && (
+              <EmptyState message="Нет пользовательских параметров. Нажмите «Добавить параметр»." />
+            )}
+            {customParams.map((param) => {
+              const arrayValue = Array.isArray(param.value)
+                ? param.value.join(", ")
+                : "";
+
+              return (
+                <div
+                  key={param.id}
+                  className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30 flex flex-col gap-3"
+                >
+                  <div className="flex gap-3 items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1">
+                      <div>
+                        <Label className="text-xs text-zinc-500 mb-1 block">
+                          Имя параметра
+                        </Label>
+                        <Input
+                          value={param.key}
+                          onChange={(e) =>
+                            updateCustomParam(configId, tabId, param.id, {
+                              key: e.target.value,
+                            })
+                          }
+                          className="h-8 text-sm font-mono"
+                          placeholder="isMeleeWeapon"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-zinc-500 mb-1 block">
+                          Placement
+                        </Label>
+                        <Input
+                          value={param.placement}
+                          onChange={(e) =>
+                            updateCustomParam(configId, tabId, param.id, {
+                              placement: e.target.value || "root",
+                            })
+                          }
+                          className="h-8 text-sm font-mono"
+                          placeholder="root / DamageSystem / ClothingTypes"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-zinc-500 mb-1 block">
+                          Тип
+                        </Label>
+                        <Select
+                          value={param.type}
+                          onValueChange={(value) =>
+                            updateCustomParam(configId, tabId, param.id, {
+                              type: value as CustomParamType,
+                              value: getDefaultCustomParamValue(
+                                value as CustomParamType,
+                              ),
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CUSTOM_PARAM_TYPE_OPTIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-zinc-400 hover:text-red-500 shrink-0 mt-5"
+                      onClick={() =>
+                        deleteCustomParam(configId, tabId, param.id)
+                      }
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-zinc-500 mb-1 block">
+                      Значение
+                    </Label>
+
+                    {param.type === "string" && (
+                      <Input
+                        value={String(param.value ?? "")}
+                        onChange={(e) =>
+                          updateCustomParam(configId, tabId, param.id, {
+                            value: e.target.value,
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                        placeholder="custom_value"
+                      />
+                    )}
+
+                    {param.type === "number" && (
+                      <Input
+                        type="number"
+                        value={Number(param.value ?? 0)}
+                        onChange={(e) =>
+                          updateCustomParam(configId, tabId, param.id, {
+                            value: Number(e.target.value),
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                      />
+                    )}
+
+                    {param.type === "boolean" && (
+                      <div className="h-8 px-3 rounded-md border border-input bg-background flex items-center justify-between">
+                        <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                          {param.value ? "true / 1" : "false / 0"}
+                        </span>
+                        <Switch
+                          checked={Boolean(param.value)}
+                          onCheckedChange={(checked) =>
+                            updateCustomParam(configId, tabId, param.id, {
+                              value: checked,
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {(param.type === "array_of_strings" ||
+                      param.type === "array_of_numbers") && (
+                      <Input
+                        value={arrayValue}
+                        onChange={(e) =>
+                          updateCustomParam(configId, tabId, param.id, {
+                            value: parseCustomArrayValue(
+                              param.type,
+                              e.target.value,
+                            ),
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                        placeholder="value1, value2"
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+});
 
 // ─────────────────────────────────────────────
 // SLOTS SECTION
@@ -2098,6 +2348,11 @@ export function EditorPanel() {
           </Card>
           
           <div className="flex flex-col gap-4">
+          <CustomParamsSection
+            customParams={activeTab.customParams || []}
+            configId={config.id}
+            tabId={activeTab.id}
+          />
 
           {/* ════════════════════════════════════
               BLOCKS 4-9 — SUB-SECTIONS

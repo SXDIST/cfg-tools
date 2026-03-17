@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { CATALOG } from './catalog';
+import { CATALOG, type ParamType } from './catalog';
 import { parseConfigCpp } from './cpp-importer';
 
 export interface ChildClassData {
@@ -27,6 +27,19 @@ export interface ProxyData {
     inventorySlots: string[];
 }
 
+export type CustomParamType = Extract<
+    ParamType,
+    'string' | 'number' | 'boolean' | 'array_of_strings' | 'array_of_numbers'
+>;
+
+export interface CustomParamData {
+    id: string;
+    key: string;
+    type: CustomParamType;
+    placement: string;
+    value: any;
+}
+
 export interface MainClassData {
     id: string;
     className: string;
@@ -34,6 +47,7 @@ export interface MainClassData {
     enabledParams: Record<string, boolean>;
     values: Record<string, any>;
     children: ChildClassData[];
+    customParams: CustomParamData[];
 }
 
 export interface ConfigData {
@@ -69,6 +83,9 @@ export interface AppState {
     updateActiveTab: (updates: Partial<MainClassData>) => void;
     setBaseClass: (configId: string, tabId: string, baseClass: string) => void;
     applyPreset: (preset: 'clothing') => void;
+    addCustomParam: (configId: string, tabId: string) => void;
+    updateCustomParam: (configId: string, tabId: string, paramId: string, updates: Partial<CustomParamData>) => void;
+    deleteCustomParam: (configId: string, tabId: string, paramId: string) => void;
 
     // Child class actions
     addChildClass: (configId: string, tabId: string, name: string) => void;
@@ -139,6 +156,7 @@ export const useAppStore = create<AppState>()(
                             },
                             values: getDefaultValues(),
                             children: [],
+                            customParams: [],
                         }
                     ]
                 };
@@ -184,6 +202,13 @@ export const useAppStore = create<AppState>()(
                                 hiddenSelectionsTextures: child.hiddenSelectionsTextures,
                                 hiddenSelectionsMaterials: child.hiddenSelectionsMaterials,
                                 visibilityModifier: child.visibilityModifier,
+                            })),
+                            customParams: (cls.customParams || []).map((param) => ({
+                                id: uuidv4(),
+                                key: param.key,
+                                type: param.type,
+                                placement: param.placement,
+                                value: param.value,
                             })),
                         })),
                     };
@@ -270,6 +295,7 @@ export const useAppStore = create<AppState>()(
                     },
                     values: getDefaultValues(),
                     children: [],
+                    customParams: [],
                 };
 
                 set((state) => ({
@@ -323,7 +349,8 @@ export const useAppStore = create<AppState>()(
                                     ...tabToCopy,
                                     id: newTabId,
                                     className: `${tabToCopy.className}_Copy`,
-                                    children: tabToCopy.children.map(child => ({ ...child, id: uuidv4() }))
+                                    children: tabToCopy.children.map(child => ({ ...child, id: uuidv4() })),
+                                    customParams: tabToCopy.customParams.map(param => ({ ...param, id: uuidv4() })),
                                 };
                                 return { ...c, classes: [...c.classes, newTab], activeTabId: newTabId };
                             }
@@ -469,6 +496,68 @@ export const useAppStore = create<AppState>()(
                 }));
             },
 
+            addCustomParam: (configId, tabId) => {
+                const newCustomParam: CustomParamData = {
+                    id: uuidv4(),
+                    key: 'customParam',
+                    type: 'string',
+                    placement: 'root',
+                    value: '',
+                };
+
+                set((state) => ({
+                    configs: state.configs.map((c) => {
+                        if (c.id !== configId) return c;
+                        return {
+                            ...c,
+                            classes: c.classes.map((cls) =>
+                                cls.id === tabId
+                                    ? { ...cls, customParams: [...(cls.customParams || []), newCustomParam] }
+                                    : cls
+                            ),
+                        };
+                    }),
+                }));
+            },
+
+            updateCustomParam: (configId, tabId, paramId, updates) => {
+                set((state) => ({
+                    configs: state.configs.map((c) => {
+                        if (c.id !== configId) return c;
+                        return {
+                            ...c,
+                            classes: c.classes.map((cls) => {
+                                if (cls.id !== tabId) return cls;
+                                return {
+                                    ...cls,
+                                    customParams: (cls.customParams || []).map((param) =>
+                                        param.id === paramId ? { ...param, ...updates } : param
+                                    ),
+                                };
+                            }),
+                        };
+                    }),
+                }));
+            },
+
+            deleteCustomParam: (configId, tabId, paramId) => {
+                set((state) => ({
+                    configs: state.configs.map((c) => {
+                        if (c.id !== configId) return c;
+                        return {
+                            ...c,
+                            classes: c.classes.map((cls) => {
+                                if (cls.id !== tabId) return cls;
+                                return {
+                                    ...cls,
+                                    customParams: (cls.customParams || []).filter((param) => param.id !== paramId),
+                                };
+                            }),
+                        };
+                    }),
+                }));
+            },
+
             // --- CHILD CLASS ACTIONS ---
 
             addChildClass: (configId, tabId, name) => {
@@ -606,7 +695,7 @@ export const useAppStore = create<AppState>()(
                 })(),
                 removeItem: (name: string) => localStorage.removeItem(name),
             },
-            version: 2,
+            version: 3,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     if (persistedState && persistedState.configs) {
@@ -621,7 +710,8 @@ export const useAppStore = create<AppState>()(
                                         baseClass: c.baseClass || '',
                                         enabledParams: c.enabledParams || {},
                                         values: c.values || {},
-                                        children: c.children || []
+                                        children: c.children || [],
+                                        customParams: c.customParams || [],
                                     }]
                                 };
                             }
@@ -635,9 +725,21 @@ export const useAppStore = create<AppState>()(
                             ...c,
                             slots: c.slots ?? (c.classes || []).flatMap((cls: any) => cls.slots || []),
                             proxies: c.proxies ?? (c.classes || []).flatMap((cls: any) => cls.proxies || []),
-                            classes: (c.classes || []).map(({ slots: _s, proxies: _p, ...rest }: any) => rest),
+                            classes: (c.classes || []).map(({ slots: _s, proxies: _p, ...rest }: any) => ({
+                                ...rest,
+                                customParams: rest.customParams || [],
+                            })),
                         }));
                     }
+                }
+                if (version <= 2 && persistedState?.configs) {
+                    persistedState.configs = persistedState.configs.map((c: any) => ({
+                        ...c,
+                        classes: (c.classes || []).map((cls: any) => ({
+                            ...cls,
+                            customParams: cls.customParams || [],
+                        })),
+                    }));
                 }
                 return persistedState;
             }

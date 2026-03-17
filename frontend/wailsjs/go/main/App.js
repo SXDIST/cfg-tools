@@ -5,3 +5,7 @@
 export function ReadTextFile(arg1) {
   return window['go']['main']['App']['ReadTextFile'](arg1);
 }
+
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
+}
