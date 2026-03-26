@@ -1,42 +1,73 @@
 "use client";
 
-import { useAppStore } from "@/lib/store";
-import { Button } from "./ui/button";
-import { useEffect, useRef, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
-  Download,
-  Copy,
-  Plus,
-  Trash,
-  CopyPlus,
-  FolderOpen,
-  FileCode2,
   ChevronDown,
-  Undo2,
+  Copy,
+  Download,
+  FileCode2,
+  FolderOpen,
   Redo2,
+  Undo2,
 } from "lucide-react";
+import { saveAs } from "file-saver";
+
+import {
+  buildConfigCppBlob,
+  buildConfigsZip,
+  getSafeConfigFileStem,
+} from "@/lib/config-export";
+import { importFromCppText } from "@/lib/import-utils";
+import { useAppStore } from "@/lib/store";
+import { ImportFeedbackDialog } from "./import-feedback-dialog";
+import { ProjectManagerDialog } from "./project-manager-dialog";
+import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "./ui/dropdown-menu";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
-import { generateCpp } from "@/lib/generator";
-import { importFromCppText } from "@/lib/import-utils";
+
+interface ImportFeedbackState {
+  title: string;
+  description: string;
+  tone: "success" | "error";
+}
+
+function getImportFeedbackState(
+  result: { success: boolean; error?: string },
+): ImportFeedbackState {
+  if (result.success) {
+    return {
+      title: "Импорт завершён",
+      description: "config.cpp успешно добавлен в список проектов.",
+      tone: "success",
+    };
+  }
+
+  return {
+    title: "Не удалось импортировать config.cpp",
+    description:
+      result.error || "Во время импорта произошла неизвестная ошибка.",
+    tone: "error",
+  };
+}
 
 export function Header() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [projectManagerOpen, setProjectManagerOpen] = useState(false);
+  const [importFeedback, setImportFeedback] =
+    useState<ImportFeedbackState | null>(null);
+
   const configs = useAppStore((s) => s.configs);
   const activeConfigId = useAppStore((s) => s.activeConfigId);
-  const activeConfig = configs.find((c) => c.id === activeConfigId);
+  const activeConfig = configs.find((config) => config.id === activeConfigId);
 
   const addConfig = useAppStore((s) => s.addConfig);
   const duplicateConfig = useAppStore((s) => s.duplicateConfig);
   const deleteConfig = useAppStore((s) => s.deleteConfig);
+  const renameConfig = useAppStore((s) => s.renameConfig);
   const setActiveConfig = useAppStore((s) => s.setActiveConfig);
   const importConfigFromCpp = useAppStore((s) => s.importConfigFromCpp);
   const canUndo = useAppStore((s) => s.canUndo);
@@ -44,25 +75,28 @@ export function Header() {
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
 
+  const activeConfigStats = useMemo(() => {
+    if (!activeConfig) return null;
+
+    return {
+      classes: activeConfig.classes.length,
+      addons: activeConfig.requiredAddons.length,
+    };
+  }, [activeConfig]);
+
   const handleExportCurrent = async () => {
     if (!activeConfig) return;
-    const cppStr = generateCpp(activeConfig);
-    const blob = new Blob([cppStr], { type: "text/plain;charset=utf-8" });
+
     saveAs(
-      blob,
-      `${activeConfig.name.replace(/[^a-zA-Z0-9]/g, "_")}_config.cpp`,
+      buildConfigCppBlob(activeConfig),
+      `${getSafeConfigFileStem(activeConfig.name)}_config.cpp`,
     );
   };
 
   const handleExportAll = async () => {
     if (configs.length === 0) return;
-    const zip = new JSZip();
-    configs.forEach((config) => {
-      const cppStr = generateCpp(config);
-      const safeName = config.name.replace(/[^a-zA-Z0-9]/g, "_") || "config";
-      zip.file(`${safeName}_config.cpp`, cppStr);
-    });
-    const blob = await zip.generateAsync({ type: "blob" });
+
+    const blob = await buildConfigsZip(configs);
     saveAs(blob, "configs.zip");
   };
 
@@ -70,18 +104,23 @@ export function Header() {
     fileInputRef.current?.click();
   };
 
-  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
       const text = await file.text();
       const result = importFromCppText(importConfigFromCpp, text, file.name);
-      if (!result.success) {
-        window.alert(result.error || "Импорт не удался");
-      }
+      setImportFeedback(getImportFeedbackState(result));
     } catch {
-      window.alert("Не удалось прочитать файл");
+      setImportFeedback({
+        title: "Не удалось прочитать файл",
+        description:
+          "Проверьте, что выбран корректный .cpp файл и попробуйте ещё раз.",
+        tone: "error",
+      });
     } finally {
       event.target.value = "";
     }
@@ -93,6 +132,7 @@ export function Header() {
       if (!hasPrimaryModifier || event.altKey) return;
 
       const key = event.key.toLowerCase();
+
       if (key === "z" && event.shiftKey) {
         if (!canRedo) return;
         event.preventDefault();
@@ -119,7 +159,32 @@ export function Header() {
   }, [canRedo, canUndo, redo, undo]);
 
   return (
-    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-5 shrink-0 z-20">
+    <header className="z-20 flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <ImportFeedbackDialog
+        open={importFeedback !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setImportFeedback(null);
+          }
+        }}
+        title={importFeedback?.title || ""}
+        description={importFeedback?.description || ""}
+        tone={importFeedback?.tone || "error"}
+      />
+
+      <ProjectManagerDialog
+        open={projectManagerOpen}
+        onOpenChange={setProjectManagerOpen}
+        configs={configs}
+        activeConfigId={activeConfigId}
+        onAddProject={addConfig}
+        onImportProject={handleImportClick}
+        onSwitchProject={setActiveConfig}
+        onDuplicateProject={duplicateConfig}
+        onDeleteProject={deleteConfig}
+        onRenameProject={renameConfig}
+      />
+
       <input
         ref={fileInputRef}
         type="file"
@@ -128,16 +193,15 @@ export function Header() {
         onChange={handleImportFileChange}
       />
 
-      {/* ── Logo ── */}
       <div className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-md bg-zinc-900 dark:bg-white flex items-center justify-center shrink-0">
-          <FileCode2 className="w-4 h-4 text-white dark:text-zinc-900" />
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-900 dark:bg-white">
+          <FileCode2 className="h-4 w-4 text-white dark:text-zinc-900" />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             cfg-tools
           </span>
-          <span className="text-zinc-300 dark:text-zinc-700 select-none">
+          <span className="select-none text-zinc-300 dark:text-zinc-700">
             /
           </span>
           <span className="text-sm text-zinc-400 dark:text-zinc-500">
@@ -146,7 +210,6 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Action buttons ── */}
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -156,7 +219,7 @@ export function Header() {
           disabled={!canUndo}
           title="Undo (Ctrl/Cmd+Z)"
         >
-          <Undo2 className="w-3.5 h-3.5" />
+          <Undo2 className="h-3.5 w-3.5" />
         </Button>
 
         <Button
@@ -167,10 +230,32 @@ export function Header() {
           disabled={!canRedo}
           title="Redo (Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y)"
         >
-          <Redo2 className="w-3.5 h-3.5" />
+          <Redo2 className="h-3.5 w-3.5" />
         </Button>
 
-        {/* Project dropdown */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 max-w-[360px] gap-1.5 text-zinc-700 dark:text-zinc-300"
+          onClick={() => setProjectManagerOpen(true)}
+          title={
+            activeConfigStats
+              ? `${activeConfigStats.classes} классов, ${activeConfigStats.addons} addons`
+              : "Открыть менеджер проектов"
+          }
+        >
+          <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 truncate">
+            {activeConfig?.name || "Проекты"}
+          </span>
+          {activeConfigStats && (
+            <span className="hidden rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 md:inline-flex">
+              {activeConfigStats.classes} / {activeConfigStats.addons}
+            </span>
+          )}
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -178,85 +263,9 @@ export function Header() {
               size="sm"
               className="h-8 gap-1.5 text-zinc-700 dark:text-zinc-300"
             >
-              <FolderOpen className="w-3.5 h-3.5" />
-              Проект
-              <ChevronDown className="w-3 h-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="text-xs font-normal text-zinc-500">
-              Управление проектом
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem onClick={() => addConfig()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Новый проект
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onClick={handleImportClick}>
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Импортировать config.cpp
-            </DropdownMenuItem>
-
-            {activeConfig && (
-              <DropdownMenuItem
-                onClick={() => duplicateConfig(activeConfig.id)}
-              >
-                <CopyPlus className="w-4 h-4 mr-2" />
-                Дублировать проект
-              </DropdownMenuItem>
-            )}
-
-            {activeConfig && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => deleteConfig(activeConfig.id)}
-                  className="text-red-500 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
-                >
-                  <Trash className="w-4 h-4 mr-2" />
-                  Удалить проект
-                </DropdownMenuItem>
-              </>
-            )}
-
-            {configs.length > 1 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs font-normal text-zinc-500">
-                  Открытые проекты
-                </DropdownMenuLabel>
-                {configs.map((config) => (
-                  <DropdownMenuItem
-                    key={config.id}
-                    onClick={() => setActiveConfig(config.id)}
-                    className={
-                      activeConfigId === config.id
-                        ? "bg-zinc-100 dark:bg-zinc-800 font-medium"
-                        : ""
-                    }
-                  >
-                    <FolderOpen className="w-4 h-4 mr-2 opacity-50" />
-                    <span className="truncate">{config.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Export dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-zinc-700 dark:text-zinc-300"
-            >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="h-3.5 w-3.5" />
               Экспорт
-              <ChevronDown className="w-3 h-3 opacity-50" />
+              <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -264,14 +273,14 @@ export function Header() {
               onClick={handleExportCurrent}
               disabled={!activeConfig}
             >
-              <Copy className="w-4 h-4 mr-2" />
+              <Copy className="mr-2 h-4 w-4" />
               Текущий конфиг (.cpp)
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleExportAll}
               disabled={configs.length === 0}
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" />
               Все конфиги (.zip)
             </DropdownMenuItem>
           </DropdownMenuContent>

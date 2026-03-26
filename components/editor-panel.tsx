@@ -9,12 +9,12 @@ import {
   CustomParamData,
   CustomParamType,
 } from "@/lib/store";
-import { CATALOG } from "@/lib/catalog";
+import { CATALOG, type CategoryDef, type CategoryGroup } from "@/lib/catalog";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "./ui/dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./ui/accordion";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { HelpCircle, ChevronDown, Plus, Trash, X, Copy, GripVertical } from "lucide-react";
+import { HelpCircle, ChevronDown, ChevronRight, Plus, Trash, X, Copy, GripVertical } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -76,6 +76,40 @@ const SCOPE_OPTIONS = [
   { value: "1", label: "1 - Hidden" },
   { value: "2", label: "2 - Public" },
 ];
+
+const CATEGORY_GROUP_LABELS: Record<CategoryGroup, string> = {
+  core: "Основа предмета",
+  storage: "Инвентарь и содержимое",
+  apparel: "Одежда и защита",
+  combat: "Бой и звук",
+  systems: "Питание и спецсистемы",
+};
+
+const ORDERED_CATALOG = [...CATALOG].sort((a, b) => a.order - b.order);
+
+const CATALOG_GROUPS = Object.entries(
+  ORDERED_CATALOG.reduce<Record<CategoryGroup, CategoryDef[]>>(
+    (acc, category) => {
+      acc[category.group].push(category);
+      return acc;
+    },
+    {
+      core: [],
+      storage: [],
+      apparel: [],
+      combat: [],
+      systems: [],
+    },
+  ),
+) as [CategoryGroup, CategoryDef[]][];
+
+const DEFAULT_DIALOG_GROUP_OPEN_STATE = Object.fromEntries(
+  CATALOG_GROUPS.map(([groupId]) => [groupId, true]),
+) as Record<CategoryGroup, boolean>;
+
+const DEFAULT_DIALOG_SECTION_OPEN_STATE = Object.fromEntries(
+  ORDERED_CATALOG.map((category) => [category.id, true]),
+) as Record<string, boolean>;
 
 function getDefaultCustomParamValue(type: CustomParamType) {
   switch (type) {
@@ -819,6 +853,12 @@ export function EditorPanel() {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
+  const [dialogCategoryGroupsOpen, setDialogCategoryGroupsOpen] = useState<Record<CategoryGroup, boolean>>(
+    DEFAULT_DIALOG_GROUP_OPEN_STATE,
+  );
+  const [dialogParameterSectionsOpen, setDialogParameterSectionsOpen] = useState<Record<string, boolean>>(
+    DEFAULT_DIALOG_SECTION_OPEN_STATE,
+  );
   const [enabledParamQuery, setEnabledParamQuery] = useState("");
   const [newAddonInput, setNewAddonInput] = useState("");
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
@@ -876,7 +916,7 @@ export function EditorPanel() {
 
     const nextValues = { ...activeTab.values };
     if (checked) {
-      const allParams = CATALOG.flatMap((category) => category.params);
+      const allParams = ORDERED_CATALOG.flatMap((category) => category.params);
       const target = allParams.find((p) => p.key === key);
       if (target && nextValues[key] === undefined && target.defaultValue !== undefined) {
         nextValues[key] = target.defaultValue;
@@ -912,7 +952,7 @@ export function EditorPanel() {
   };
 
   const normalizedEnabledParamQuery = enabledParamQuery.trim().toLowerCase();
-  const allEnabledParamCount = CATALOG.reduce(
+  const allEnabledParamCount = ORDERED_CATALOG.reduce(
     (sum, category) =>
       sum +
       category.params.filter(
@@ -924,7 +964,7 @@ export function EditorPanel() {
     0,
   );
 
-  const parameterSections = CATALOG.map((category) => {
+  const parameterSections = ORDERED_CATALOG.map((category) => {
     const enabledInCat = category.params.filter((p) => {
       if (!activeTab.enabledParams[p.key]) return false;
       if (p.key === "female" || p.key === "proxyInventorySlot") return false;
@@ -976,8 +1016,18 @@ export function EditorPanel() {
     handleValueChange(key, arr);
   };
 
-  const handleAddArrayItem = (key: string) => {
-    handleValueChange(key, [...(activeTab.values[key] || []), ""]);
+  const handleArrayItemValueChange = (
+    key: string,
+    index: number,
+    nextValue: string | number,
+  ) => {
+    const arr = [...(activeTab.values[key] || [])];
+    arr[index] = nextValue;
+    handleValueChange(key, arr);
+  };
+
+  const handleAddArrayItem = (key: string, initialValue: string | number = "") => {
+    handleValueChange(key, [...(activeTab.values[key] || []), initialValue]);
   };
 
   const handleRemoveArrayItem = (key: string, index: number) => {
@@ -988,6 +1038,19 @@ export function EditorPanel() {
 
   const getArrayValueStr = (val: unknown) =>
     Array.isArray(val) ? val.join(", ") : "";
+
+  const toComboBoxOptions = (
+    options: { label: string; value: string | number }[] = [],
+  ) => options.map((opt) => ({ label: opt.label, value: String(opt.value) }));
+
+  const coerceSelectableValue = (
+    rawValue: string,
+    treatAsNumber: boolean,
+  ) => {
+    if (!treatAsNumber) return rawValue;
+    const numericValue = Number(rawValue);
+    return Number.isNaN(numericValue) ? rawValue : numericValue;
+  };
 
   const addAddon = () => {
     const trimmed = newAddonInput.trim();
@@ -1290,19 +1353,59 @@ export function EditorPanel() {
                             >
                               Все параметры
                             </button>
-                            {CATALOG.map((category) => (
-                              <button
-                                key={category.id}
-                                className={`text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                                  activeCategoryFilter === category.id
-                                    ? "bg-zinc-200/50 dark:bg-zinc-800 font-medium"
-                                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400"
-                                }`}
-                                onClick={() => setActiveCategoryFilter(category.id)}
-                              >
-                                {category.title}
-                              </button>
-                            ))}
+                            {CATALOG_GROUPS.map(([groupId, categories]) => {
+                              const isOpen = dialogCategoryGroupsOpen[groupId] ?? true;
+
+                              return (
+                                <div key={groupId} className="space-y-1.5">
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between rounded-md px-3 pt-2 text-left text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:bg-zinc-100/70 dark:text-zinc-500 dark:hover:bg-zinc-800/40"
+                                    onClick={() =>
+                                      setDialogCategoryGroupsOpen((prev) => ({
+                                        ...prev,
+                                        [groupId]: !isOpen,
+                                      }))
+                                    }
+                                  >
+                                    <span>{CATEGORY_GROUP_LABELS[groupId]}</span>
+                                    {isOpen ? (
+                                      <ChevronDown className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <ChevronRight className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+
+                                  {isOpen &&
+                                    categories.map((category) => (
+                                      <button
+                                        key={category.id}
+                                        className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+                                          activeCategoryFilter === category.id
+                                            ? "bg-zinc-200/50 dark:bg-zinc-800"
+                                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
+                                        }`}
+                                        onClick={() => setActiveCategoryFilter(category.id)}
+                                      >
+                                        <div
+                                          className={`text-sm ${
+                                            activeCategoryFilter === category.id
+                                              ? "font-medium text-zinc-950 dark:text-zinc-50"
+                                              : "text-zinc-700 dark:text-zinc-300"
+                                          }`}
+                                        >
+                                          {category.title}
+                                        </div>
+                                        {category.description && (
+                                          <div className="mt-0.5 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
+                                            {category.description}
+                                          </div>
+                                        )}
+                                      </button>
+                                    ))}
+                                </div>
+                              );
+                            })}
                           </div>
                         </ScrollArea>
                       </div>
@@ -1320,7 +1423,7 @@ export function EditorPanel() {
                         <ScrollArea className="min-h-0 flex-1">
                           <div className="p-3 flex flex-col gap-5">
                             {(() => {
-                               const filteredCatalog = CATALOG.filter(
+                               const filteredCatalog = ORDERED_CATALOG.filter(
                                  (c) =>
                                    activeCategoryFilter === null || activeCategoryFilter === c.id
                                );
@@ -1331,10 +1434,22 @@ export function EditorPanel() {
 
                                     if (searchParamQuery.trim()) {
                                       const query = searchParamQuery.toLowerCase();
+                                      const categoryTitleMatches = category.title.toLowerCase().includes(query);
+                                      const categoryDescriptionMatches = category.description?.toLowerCase().includes(query) ?? false;
+                                      const categoryKeywordMatches = category.searchTerms?.some((term) =>
+                                        term.toLowerCase().includes(query),
+                                      ) ?? false;
                                       const titleMatches = p.label.toLowerCase().includes(query);
                                       const descMatches = p.description.toLowerCase().includes(query);
                                       const keyMatches = p.key.toLowerCase().includes(query);
-                                      if (!titleMatches && !descMatches && !keyMatches) {
+                                      if (
+                                        !titleMatches &&
+                                        !descMatches &&
+                                        !keyMatches &&
+                                        !categoryTitleMatches &&
+                                        !categoryDescriptionMatches &&
+                                        !categoryKeywordMatches
+                                      ) {
                                         return false;
                                       }
                                     }
@@ -1350,17 +1465,44 @@ export function EditorPanel() {
 
                                return (
                                  <>
-                                   {sections.map(({ category, unused }) => {
-                                      if (unused.length === 0) return null;
+                                    {sections.map(({ category, unused }) => {
+                                       if (unused.length === 0) return null;
 
-                                      return (
+                                       const isSectionOpen =
+                                         dialogParameterSectionsOpen[category.id] ?? true;
+
+                                       return (
                                         <div key={category.id}>
-                                          {activeCategoryFilter === null && (
-                                            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                                              {category.title}
+                                          <button
+                                            type="button"
+                                            className="mb-2 flex w-full items-start justify-between rounded-lg border border-zinc-200/80 bg-zinc-50/80 px-3 py-2 text-left transition-colors hover:bg-zinc-100/80 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
+                                            onClick={() =>
+                                              setDialogParameterSectionsOpen((prev) => ({
+                                                ...prev,
+                                                [category.id]: !isSectionOpen,
+                                              }))
+                                            }
+                                          >
+                                            <div>
+                                              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                                                {category.title}
+                                              </div>
+                                              {category.description && (
+                                                <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                  {category.description}
+                                                </div>
+                                              )}
+                                              <div className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                                                Параметров: {unused.length}
+                                              </div>
                                             </div>
-                                          )}
-                                          <div className="grid gap-2">
+                                            {isSectionOpen ? (
+                                              <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                                            ) : (
+                                              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                                            )}
+                                          </button>
+                                           {isSectionOpen && <div className="grid gap-2">
                                             {unused.map((param) => (
                                               <div
                                                 key={param.key}
@@ -1391,7 +1533,7 @@ export function EditorPanel() {
                                                 </Button>
                                               </div>
                                             ))}
-                                          </div>
+                                          </div>}
                                         </div>
                                       );
                                    })}
@@ -1473,6 +1615,9 @@ export function EditorPanel() {
                                     {category.title}
                                   </p>
                                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                                    {category.description}
+                                  </p>
+                                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                                     {enabledInCat.length === 1
                                       ? "1 параметр в этой группе"
                                       : `${enabledInCat.length} параметров в этой группе`}
@@ -1578,18 +1723,38 @@ export function EditorPanel() {
                                 </div>
 
                                 {/* Param input */}
-                                {param.type === "string" && (
-                                  <Input
-                                    value={value}
-                                    onChange={(e) =>
-                                      handleValueChange(
-                                        param.key,
-                                        e.target.value,
-                                      )
-                                    }
-                                    className="h-8 text-sm font-mono"
-                                  />
-                                )}
+                                {param.type === "string" &&
+                                  (!param.selectOptions ||
+                                    param.selectOptions.length === 0) && (
+                                    <Input
+                                      value={value}
+                                      onChange={(e) =>
+                                        handleValueChange(
+                                          param.key,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="h-8 text-sm font-mono"
+                                    />
+                                  )}
+
+                                {param.type === "string" &&
+                                  param.selectOptions &&
+                                  param.selectOptions.length > 0 && (
+                                    <ComboBox
+                                      options={toComboBoxOptions(param.selectOptions)}
+                                      onChange={(selectedValue) =>
+                                        handleValueChange(param.key, selectedValue)
+                                      }
+                                      value={String(value ?? "")}
+                                      placeholder="Выберите или введите значение..."
+                                      allowCustom={param.allowCustom ?? true}
+                                      searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                      customOptionLabel={(customValue) =>
+                                        `Использовать своё значение: ${customValue}`
+                                      }
+                                    />
+                                  )}
 
                                 {param.type === "number" &&
                                   param.key === "scope" && (
@@ -1614,22 +1779,46 @@ export function EditorPanel() {
                                 )}
 
                                 {param.type === "number" &&
-                                  param.key !== "scope" && (
-                                  <Input
-                                    type="number"
-                                    value={value}
-                                    min={param.key === "visibilityModifier" ? 0 : undefined}
-                                    max={param.key === "visibilityModifier" ? 1 : undefined}
-                                    step={param.key === "visibilityModifier" ? 0.01 : undefined}
-                                    onChange={(e) => {
-                                      let val = Number(e.target.value);
-                                      if (param.key === "visibilityModifier")
-                                        val = Math.max(0, Math.min(1, val));
-                                      handleValueChange(param.key, val);
-                                    }}
-                                    className="h-8 text-sm font-mono"
-                                  />
-                                )}
+                                  param.key !== "scope" &&
+                                  param.selectOptions &&
+                                  param.selectOptions.length > 0 && (
+                                    <ComboBox
+                                      options={toComboBoxOptions(param.selectOptions)}
+                                      value={String(value ?? param.defaultValue ?? "")}
+                                      onChange={(selectedValue) =>
+                                        handleValueChange(
+                                          param.key,
+                                          coerceSelectableValue(selectedValue, true),
+                                        )
+                                      }
+                                      placeholder="Выберите или введите значение..."
+                                      allowCustom={param.allowCustom ?? true}
+                                      searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                      customOptionLabel={(customValue) =>
+                                        `Использовать своё значение: ${customValue}`
+                                      }
+                                    />
+                                  )}
+
+                                {param.type === "number" &&
+                                  param.key !== "scope" &&
+                                  (!param.selectOptions ||
+                                    param.selectOptions.length === 0) && (
+                                    <Input
+                                      type="number"
+                                      value={value}
+                                      min={param.key === "visibilityModifier" ? 0 : undefined}
+                                      max={param.key === "visibilityModifier" ? 1 : undefined}
+                                      step={param.key === "visibilityModifier" ? 0.01 : undefined}
+                                      onChange={(e) => {
+                                        let val = Number(e.target.value);
+                                        if (param.key === "visibilityModifier")
+                                          val = Math.max(0, Math.min(1, val));
+                                        handleValueChange(param.key, val);
+                                      }}
+                                      className="h-8 text-sm font-mono"
+                                    />
+                                  )}
 
                                 {param.type === "boolean" && (
                                   <div className="h-9 px-3 rounded-md border border-input bg-transparent flex items-center justify-between">
@@ -1691,7 +1880,7 @@ export function EditorPanel() {
                                   </div>
                                 )}
 
-                                {param.type === "select" && (
+                                {param.type === "select" && !param.allowCustom && (
                                   <Select
                                     value={value !== undefined ? String(value) : (param.defaultValue !== undefined ? String(param.defaultValue) : "")}
                                     onValueChange={(val) => {
@@ -1715,6 +1904,34 @@ export function EditorPanel() {
                                   </Select>
                                 )}
 
+                                {param.type === "select" && param.allowCustom && (
+                                  <ComboBox
+                                    options={toComboBoxOptions(param.selectOptions)}
+                                    onChange={(selectedValue) =>
+                                      handleValueChange(
+                                        param.key,
+                                        coerceSelectableValue(
+                                          selectedValue,
+                                          typeof param.defaultValue === "number",
+                                        ),
+                                      )
+                                    }
+                                    value={
+                                      value !== undefined
+                                        ? String(value)
+                                        : param.defaultValue !== undefined
+                                          ? String(param.defaultValue)
+                                          : ""
+                                    }
+                                    placeholder="Выберите или введите значение..."
+                                    allowCustom
+                                    searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                    customOptionLabel={(customValue) =>
+                                      `Использовать своё значение: ${customValue}`
+                                    }
+                                  />
+                                )}
+
                                 {param.type === "multi-select" && (
                                   <MultiSelect
                                     options={
@@ -1725,7 +1942,7 @@ export function EditorPanel() {
                                     }
                                     value={Array.isArray(value) ? value : value ? [String(value)] : []}
                                     placeholder="Выберите значения..."
-                                    allowCustom={param.key === "inventorySlot"}
+                                    allowCustom={param.allowCustom ?? param.key === "inventorySlot"}
                                   />
                                 )}
 
@@ -1746,15 +1963,15 @@ export function EditorPanel() {
                                         : String(value ?? "")
                                     }
                                     placeholder="Выберите значение..."
-                                    allowCustom={param.key === "inventorySlot"}
+                                    allowCustom={param.allowCustom ?? false}
                                     searchPlaceholder={
-                                      param.key === "inventorySlot"
-                                        ? "Выберите или введите свой слот..."
+                                      param.allowCustom
+                                        ? "Выберите или введите своё значение..."
                                         : "Search..."
                                     }
                                     customOptionLabel={
-                                      param.key === "inventorySlot"
-                                        ? (customValue) => `Использовать свой слот: ${customValue}`
+                                      param.allowCustom
+                                        ? (customValue) => `Использовать своё значение: ${customValue}`
                                         : undefined
                                     }
                                   />
@@ -1764,7 +1981,11 @@ export function EditorPanel() {
                                   <Select
                                     value={
                                       value?.soundSet ||
-                                      param.defaultValue?.soundSet ||
+                                      (
+                                        param.defaultValue as
+                                          | { soundSet?: string }
+                                          | undefined
+                                      )?.soundSet ||
                                       ""
                                     }
                                     onValueChange={(newSoundSet) => {
@@ -1794,77 +2015,207 @@ export function EditorPanel() {
                                   </Select>
                                 )}
 
-                                {param.type === "array_of_strings" && (
-                                  <div className="flex flex-col gap-2">
-                                    {(value || []).map(
-                                      (item: string, idx: number) => (
-                                        <div
-                                          key={idx}
-                                          className="flex items-center gap-1"
-                                        >
-                                          <Input
-                                            value={item}
-                                            onChange={(e) =>
-                                              handleArrayItemChange(
-                                                param.key,
-                                                idx,
-                                                e.target.value,
-                                              )
-                                            }
-                                            placeholder="Значение..."
-                                            className="h-8 text-sm font-mono flex-1"
-                                          />
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-zinc-400 hover:text-red-500"
-                                            onClick={() =>
-                                              handleRemoveArrayItem(
-                                                param.key,
-                                                idx,
-                                              )
-                                            }
+                                {param.type === "array_of_strings" &&
+                                  param.selectOptions &&
+                                  param.selectOptions.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                      {(value || []).map(
+                                        (item: string, idx: number) => (
+                                          <div
+                                            key={idx}
+                                            className="flex items-center gap-1"
                                           >
-                                            <X className="w-4 h-4" />
-                                          </Button>
-                                        </div>
-                                      ),
-                                    )}
-                                    {(!value || value.length === 0) && (
-                                      <p className="text-[10px] text-zinc-400 italic">
-                                        Список пуст
-                                      </p>
-                                    )}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-7 text-xs self-start"
-                                      onClick={() =>
-                                        handleAddArrayItem(param.key)
-                                      }
-                                    >
-                                      <Plus className="w-3 h-3 mr-1" /> Добавить
-                                      элемент
-                                    </Button>
-                                  </div>
-                                )}
-
-                                {param.type === "array_of_numbers" && (
-                                  <Input
-                                    value={getArrayValueStr(value)}
-                                    onChange={(e) =>
-                                      handleValueChange(
-                                        param.key,
-                                        parseArrayInput(
-                                          param.type,
-                                          e.target.value,
+                                            <ComboBox
+                                              options={toComboBoxOptions(param.selectOptions)}
+                                              value={String(item ?? "")}
+                                              onChange={(selectedValue) =>
+                                                handleArrayItemValueChange(
+                                                  param.key,
+                                                  idx,
+                                                  selectedValue,
+                                                )
+                                              }
+                                              placeholder="Выберите или введите значение..."
+                                              className="h-8 text-sm font-mono flex-1"
+                                              allowCustom={param.allowCustom ?? true}
+                                              searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                              customOptionLabel={(customValue) =>
+                                                `Использовать своё значение: ${customValue}`
+                                              }
+                                            />
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-zinc-400 hover:text-red-500"
+                                              onClick={() =>
+                                                handleRemoveArrayItem(
+                                                  param.key,
+                                                  idx,
+                                                )
+                                              }
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </Button>
+                                          </div>
                                         ),
-                                      )
-                                    }
-                                    placeholder="Comma separated values"
-                                    className="h-8 text-sm font-mono"
-                                  />
-                                )}
+                                      )}
+                                      {(!value || value.length === 0) && (
+                                        <p className="text-[10px] text-zinc-400 italic">
+                                          Список пуст
+                                        </p>
+                                      )}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs self-start"
+                                        onClick={() =>
+                                          handleAddArrayItem(param.key)
+                                        }
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" /> Добавить
+                                        элемент
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                {param.type === "array_of_strings" &&
+                                  (!param.selectOptions ||
+                                    param.selectOptions.length === 0) && (
+                                    <div className="flex flex-col gap-2">
+                                      {(value || []).map(
+                                        (item: string, idx: number) => (
+                                          <div
+                                            key={idx}
+                                            className="flex items-center gap-1"
+                                          >
+                                            <Input
+                                              value={item}
+                                              onChange={(e) =>
+                                                handleArrayItemChange(
+                                                  param.key,
+                                                  idx,
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Значение..."
+                                              className="h-8 text-sm font-mono flex-1"
+                                            />
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-zinc-400 hover:text-red-500"
+                                              onClick={() =>
+                                                handleRemoveArrayItem(
+                                                  param.key,
+                                                  idx,
+                                                )
+                                              }
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        ),
+                                      )}
+                                      {(!value || value.length === 0) && (
+                                        <p className="text-[10px] text-zinc-400 italic">
+                                          Список пуст
+                                        </p>
+                                      )}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs self-start"
+                                        onClick={() =>
+                                          handleAddArrayItem(param.key)
+                                        }
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" /> Добавить
+                                        элемент
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                {param.type === "array_of_numbers" &&
+                                  param.selectOptions &&
+                                  param.selectOptions.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                      {(value || []).map(
+                                        (item: number, idx: number) => (
+                                          <div
+                                            key={idx}
+                                            className="flex items-center gap-1"
+                                          >
+                                            <ComboBox
+                                              options={toComboBoxOptions(param.selectOptions)}
+                                              value={String(item ?? "")}
+                                              onChange={(selectedValue) =>
+                                                handleArrayItemValueChange(
+                                                  param.key,
+                                                  idx,
+                                                  coerceSelectableValue(selectedValue, true),
+                                                )
+                                              }
+                                              placeholder="Выберите или введите значение..."
+                                              className="h-8 text-sm font-mono flex-1"
+                                              allowCustom={param.allowCustom ?? true}
+                                              searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                              customOptionLabel={(customValue) =>
+                                                `Использовать своё значение: ${customValue}`
+                                              }
+                                            />
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-zinc-400 hover:text-red-500"
+                                              onClick={() =>
+                                                handleRemoveArrayItem(
+                                                  param.key,
+                                                  idx,
+                                                )
+                                              }
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        ),
+                                      )}
+                                      {(!value || value.length === 0) && (
+                                        <p className="text-[10px] text-zinc-400 italic">
+                                          Список пуст
+                                        </p>
+                                      )}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs self-start"
+                                        onClick={() =>
+                                          handleAddArrayItem(param.key, 0)
+                                        }
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" /> Добавить
+                                        элемент
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                {param.type === "array_of_numbers" &&
+                                  (!param.selectOptions ||
+                                    param.selectOptions.length === 0) && (
+                                    <Input
+                                      value={getArrayValueStr(value)}
+                                      onChange={(e) =>
+                                        handleValueChange(
+                                          param.key,
+                                          parseArrayInput(
+                                            param.type,
+                                            e.target.value,
+                                          ),
+                                        )
+                                      }
+                                      placeholder="Comma separated values"
+                                      className="h-8 text-sm font-mono"
+                                    />
+                                  )}
 
                                 {/* Tied param (female / proxyInventorySlot) */}
                                 {tiedParam && (

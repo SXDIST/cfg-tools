@@ -141,6 +141,32 @@ const PRESET_PARAMS: Record<PresetName, string[]> = {
 
 const HISTORY_LIMIT = 100;
 
+function sanitizeConfigName(name: unknown, fallback = 'New Project') {
+    return typeof name === 'string' && name.trim() ? name : fallback;
+}
+
+function sanitizePersistedConfigs(configs: unknown): ConfigData[] {
+    if (!Array.isArray(configs)) return [];
+
+    return configs.map((config, index) => {
+        const candidate = (config ?? {}) as Partial<ConfigData>;
+        const classes = Array.isArray(candidate.classes) ? candidate.classes : [];
+        const firstClassId = classes[0]?.id ?? uuidv4();
+
+        return {
+            id: typeof candidate.id === 'string' ? candidate.id : uuidv4(),
+            name: sanitizeConfigName(candidate.name, `Project ${index + 1}`),
+            requiredAddons: Array.isArray(candidate.requiredAddons) ? candidate.requiredAddons : ['DZ_Data', 'DZ_Characters'],
+            classes,
+            activeTabId: typeof candidate.activeTabId === 'string' || candidate.activeTabId === null
+                ? candidate.activeTabId
+                : firstClassId,
+            slots: Array.isArray(candidate.slots) ? candidate.slots : [],
+            proxies: Array.isArray(candidate.proxies) ? candidate.proxies : [],
+        };
+    });
+}
+
 function createHistorySnapshot(state: Pick<AppState, 'configs' | 'activeConfigId'>): HistorySnapshot {
     return {
         configs: state.configs,
@@ -247,7 +273,7 @@ export const useAppStore = create<AppState>()(
                 const initialTabId = uuidv4();
                 const newConfig: ConfigData = {
                     id: uuidv4(),
-                    name,
+                    name: sanitizeConfigName(name),
                     requiredAddons: ['DZ_Data', 'DZ_Characters'],
                     activeTabId: initialTabId,
                     slots: [],
@@ -358,8 +384,9 @@ export const useAppStore = create<AppState>()(
             },
 
             renameConfig: (id, newName) => {
+                const safeName = sanitizeConfigName(newName);
                 setWithHistory((state) => ({
-                    configs: state.configs.map((c) => (c.id === id ? { ...c, name: newName } : c)),
+                    configs: state.configs.map((c) => (c.id === id ? { ...c, name: safeName } : c)),
                 }));
             },
 
@@ -809,8 +836,18 @@ export const useAppStore = create<AppState>()(
                 })(),
                 removeItem: (name: string) => localStorage.removeItem(name),
             },
-            version: 3,
+            version: 4,
             migrate: (persistedState: any, version: number) => {
+                if (persistedState?.configs) {
+                    persistedState.configs = sanitizePersistedConfigs(persistedState.configs);
+                    if (
+                        persistedState.activeConfigId &&
+                        !persistedState.configs.some((c: ConfigData) => c.id === persistedState.activeConfigId)
+                    ) {
+                        persistedState.activeConfigId = persistedState.configs[0]?.id ?? null;
+                    }
+                }
+
                 if (version === 0) {
                     if (persistedState && persistedState.configs) {
                         persistedState.configs = persistedState.configs.map((c: any) => {
