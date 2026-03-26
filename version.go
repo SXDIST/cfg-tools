@@ -1,7 +1,7 @@
 package main
 
 const (
-	AppVersion      = "1.0.9"
+	AppVersion      = "2.0.0"
 	GitHubOwner     = "SXDIST"
 	GitHubRepo      = "cfg-tools"
 	UpdateEventName = "app:update-available"
