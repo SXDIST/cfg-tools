@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/locale-provider";
 import { MarkdownNotes } from "@/components/markdown-notes";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,8 @@ export function UpdateDialog({
   onClose,
   onUpdate,
 }: UpdateDialogProps) {
+  const { t } = useLocale();
+
   return (
     <Dialog
       open={!!updateInfo}
@@ -39,10 +42,8 @@ export function UpdateDialog({
     >
       <DialogContent className="w-[min(calc(100vw-2rem),1000px)] max-w-[min(calc(100vw-2rem),1000px)] p-6 sm:max-w-[1000px]">
         <DialogHeader>
-          <DialogTitle>Доступно обновление</DialogTitle>
-          <DialogDescription>
-            Вышла новая версия cfg-tools. Хотите перейти к обновлению?
-          </DialogDescription>
+          <DialogTitle>{t("update_available")}</DialogTitle>
+          <DialogDescription>{t("update_available_desc")}</DialogDescription>
         </DialogHeader>
 
         {updateInfo && (
@@ -52,10 +53,10 @@ export function UpdateDialog({
                 {updateInfo.title}
               </p>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Текущая версия: {updateInfo.currentVersion}
+                {t("current_version", { value: updateInfo.currentVersion })}
               </p>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Доступная версия: {updateInfo.latestVersion}
+                {t("latest_version", { value: updateInfo.latestVersion })}
               </p>
             </div>
 
@@ -69,9 +70,9 @@ export function UpdateDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Позже
+            {t("later")}
           </Button>
-          <Button onClick={onUpdate}>Обновить</Button>
+          <Button onClick={onUpdate}>{t("update")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

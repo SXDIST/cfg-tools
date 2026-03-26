@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { X, Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+
+import { useLocale } from "@/components/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,10 +39,11 @@ export function MultiSelect({
   options,
   value,
   onChange,
-  placeholder = "Select items...",
+  placeholder,
   className,
   allowCustom = false,
 }: MultiSelectProps) {
+  const { t } = useLocale();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
@@ -56,8 +59,8 @@ export function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full h-auto min-h-9 px-3 py-2 justify-between font-normal hover:bg-background",
-            className
+            "h-auto min-h-9 w-full justify-between px-3 py-2 font-normal hover:bg-background",
+            className,
           )}
         >
           <div className="flex flex-wrap gap-1">
@@ -76,7 +79,7 @@ export function MultiSelect({
                   <span
                     role="button"
                     tabIndex={0}
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                    className="ml-1 cursor-pointer rounded-full ring-offset-background outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         handleUnselect(item);
@@ -97,16 +100,18 @@ export function MultiSelect({
                 </Badge>
               ))
             ) : (
-              <span className="text-muted-foreground text-sm">{placeholder}</span>
+              <span className="text-sm text-muted-foreground">
+                {placeholder || t("choose_values")}
+              </span>
             )}
           </div>
-          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command className="w-full">
           <CommandInput
-            placeholder="Search..."
+            placeholder={t("search")}
             className="h-9"
             value={search}
             onValueChange={setSearch}
@@ -115,7 +120,7 @@ export function MultiSelect({
             <CommandEmpty>
               {allowCustom && search.trim() ? (
                 <button
-                  className="w-full px-3 py-2 text-sm text-left hover:bg-accent cursor-pointer"
+                  className="w-full cursor-pointer px-3 py-2 text-left text-sm hover:bg-accent"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     const trimmed = search.trim();
@@ -125,10 +130,11 @@ export function MultiSelect({
                     setSearch("");
                   }}
                 >
-                  Добавить: <span className="font-medium">{search.trim()}</span>
+                  {t("add")}:{" "}
+                  <span className="font-medium">{search.trim()}</span>
                 </button>
               ) : (
-                "No results found."
+                t("no_query_results")
               )}
             </CommandEmpty>
             <CommandGroup>
@@ -141,7 +147,7 @@ export function MultiSelect({
                       onChange(
                         isSelected
                           ? value.filter((i) => i !== option.value)
-                          : [...value, option.value]
+                          : [...value, option.value],
                       );
                     }}
                   >
@@ -150,33 +156,38 @@ export function MultiSelect({
                         "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                         isSelected
                           ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
+                          : "opacity-50 [&_svg]:invisible",
                       )}
                     >
-                      <Check className={cn("h-3 w-3")} />
+                      <Check className="h-3 w-3" />
                     </div>
                     <span>{option.label}</span>
                   </CommandItem>
                 );
               })}
-              {allowCustom && search.trim() && !options.some(o => o.value === search.trim()) && (
-                <CommandItem
-                  key="__custom__"
-                  value={search.trim()}
-                  onSelect={() => {
-                    const trimmed = search.trim();
-                    if (trimmed && !value.includes(trimmed)) {
-                      onChange([...value, trimmed]);
-                    }
-                    setSearch("");
-                  }}
-                >
-                  <div className="mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary opacity-50 [&_svg]:invisible">
-                    <Check className="h-3 w-3" />
-                  </div>
-                  <span>Добавить: <span className="font-medium">{search.trim()}</span></span>
-                </CommandItem>
-              )}
+              {allowCustom &&
+                search.trim() &&
+                !options.some((option) => option.value === search.trim()) && (
+                  <CommandItem
+                    key="__custom__"
+                    value={search.trim()}
+                    onSelect={() => {
+                      const trimmed = search.trim();
+                      if (trimmed && !value.includes(trimmed)) {
+                        onChange([...value, trimmed]);
+                      }
+                      setSearch("");
+                    }}
+                  >
+                    <div className="mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary opacity-50 [&_svg]:invisible">
+                      <Check className="h-3 w-3" />
+                    </div>
+                    <span>
+                      {t("add")}:{" "}
+                      <span className="font-medium">{search.trim()}</span>
+                    </span>
+                  </CommandItem>
+                )}
             </CommandGroup>
           </CommandList>
         </Command>

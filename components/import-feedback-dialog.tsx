@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
+import { useLocale } from "./locale-provider";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function ImportFeedbackDialog({
 }: ImportFeedbackDialogProps) {
   const isError = tone === "error";
   const Icon = isError ? AlertCircle : CheckCircle2;
+  const { t } = useLocale();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,7 +55,7 @@ export function ImportFeedbackDialog({
 
         <DialogFooter>
           <Button type="button" onClick={() => onOpenChange(false)}>
-            Понятно
+            {t("understood")}
           </Button>
         </DialogFooter>
       </DialogContent>

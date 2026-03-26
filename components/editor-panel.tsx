@@ -47,6 +47,7 @@ import { Switch } from "./ui/switch";
 import { Button } from "./ui/button";
 import { MultiSelect, type Option as MultiSelectOption } from "./ui/multi-select";
 import { ComboBox } from "./ui/combobox";
+import { useLocale } from "./locale-provider";
 
 // ─────────────────────────────────────────────
 // SHARED HELPERS
@@ -850,6 +851,7 @@ const RetexturesSection = memo(function RetexturesSection({
 // ─────────────────────────────────────────────
 
 export function EditorPanel() {
+  const { t } = useLocale();
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
@@ -1072,16 +1074,16 @@ export function EditorPanel() {
           ════════════════════════════════════ */}
           <Card>
             <CardHeader>
-              <CardTitle>Настройки проекта</CardTitle>
+              <CardTitle>{t("project_settings")}</CardTitle>
               <CardDescription>
-                Имя файла конфигурации и зависимости аддонов.
+                {t("project_settings_desc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Project name */}
               <div>
                 <Label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 block">
-                  Название проекта
+                  {t("project_name")}
                 </Label>
                 <Input
                   value={config.name}
@@ -1104,7 +1106,7 @@ export function EditorPanel() {
                 <div className="flex flex-wrap gap-1.5 mb-3 min-h-7">
                   {(config.requiredAddons || []).length === 0 && (
                     <span className="text-xs text-zinc-400 italic self-center">
-                      Нет аддонов
+                      {t("no_addons")}
                     </span>
                   )}
                   {(config.requiredAddons || []).map((addon, idx) => (
@@ -1148,7 +1150,7 @@ export function EditorPanel() {
                     disabled={!newAddonInput.trim()}
                     onClick={addAddon}
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Добавить
+                    <Plus className="w-3.5 h-3.5 mr-1" /> {t("add")}
                   </Button>
                 </div>
               </div>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import type { ConfigData } from "@/lib/store";
+import { useLocale } from "./locale-provider";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -56,6 +57,7 @@ export function ProjectManagerDialog({
   const [draftName, setDraftName] = useState("");
   const [pendingDeleteConfig, setPendingDeleteConfig] =
     useState<ConfigData | null>(null);
+  const { t } = useLocale();
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -120,10 +122,6 @@ export function ProjectManagerDialog({
     }
   };
 
-  const handleDelete = (config: ConfigData) => {
-    setPendingDeleteConfig(config);
-  };
-
   const confirmDelete = () => {
     if (!pendingDeleteConfig) return;
     onDeleteProject(pendingDeleteConfig.id);
@@ -133,13 +131,10 @@ export function ProjectManagerDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-[min(1180px,calc(100vw-2rem))] sm:!max-w-[min(1180px,calc(100vw-2rem))] p-0 overflow-hidden">
+        <DialogContent className="!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] overflow-hidden p-0 sm:!w-[min(1180px,calc(100vw-2rem))] sm:!max-w-[min(1180px,calc(100vw-2rem))]">
           <DialogHeader className="border-b border-zinc-200 px-6 pt-6 pb-4 dark:border-zinc-800">
-            <DialogTitle>Управление проектами</DialogTitle>
-            <DialogDescription>
-              Быстро переключайтесь между проектами, переименовывайте их и
-              удаляйте без похода по маленьким меню.
-            </DialogDescription>
+            <DialogTitle>{t("project_manager")}</DialogTitle>
+            <DialogDescription>{t("project_manager_desc")}</DialogDescription>
           </DialogHeader>
 
           <div className="border-b border-zinc-200 bg-zinc-50/60 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900/30">
@@ -149,7 +144,7 @@ export function ProjectManagerDialog({
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Поиск по названию проекта, классу или addon..."
+                  placeholder={t("project_search_placeholder")}
                   className="pl-9"
                 />
               </div>
@@ -161,11 +156,11 @@ export function ProjectManagerDialog({
                   onClick={() => onImportProject()}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Импорт
+                  {t("import")}
                 </Button>
                 <Button type="button" onClick={() => onAddProject()}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Новый проект
+                  {t("new_project")}
                 </Button>
               </div>
             </div>
@@ -175,14 +170,16 @@ export function ProjectManagerDialog({
             <ScrollArea className="max-h-[72vh]">
               <div className="p-4">
                 <div className="mb-3 flex items-center justify-between text-sm text-zinc-500">
-                  <span>Проектов: {configs.length}</span>
-                  <span>Найдено: {filteredConfigs.length}</span>
+                  <span>{t("total_projects", { count: configs.length })}</span>
+                  <span>
+                    {t("found_projects", { count: filteredConfigs.length })}
+                  </span>
                 </div>
 
                 <div className="space-y-3">
                   {filteredConfigs.length === 0 && (
                     <div className="rounded-xl border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-                      По этому запросу проекты не найдены.
+                      {t("no_projects_found")}
                     </div>
                   )}
 
@@ -253,7 +250,7 @@ export function ProjectManagerDialog({
                                   </div>
                                   {isActive && (
                                     <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
-                                      Активный
+                                      {t("active_project")}
                                     </span>
                                   )}
                                 </>
@@ -261,10 +258,24 @@ export function ProjectManagerDialog({
                             </div>
 
                             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              <span>Классов: {config.classes.length}</span>
-                              <span>Слотов: {config.slots.length}</span>
-                              <span>Прокси: {config.proxies.length}</span>
-                              <span>Addons: {config.requiredAddons.length}</span>
+                              <span>
+                                {t("classes_count", {
+                                  count: config.classes.length,
+                                })}
+                              </span>
+                              <span>
+                                {t("slots_count", { count: config.slots.length })}
+                              </span>
+                              <span>
+                                {t("proxies_count", {
+                                  count: config.proxies.length,
+                                })}
+                              </span>
+                              <span>
+                                {t("addons_count", {
+                                  count: config.requiredAddons.length,
+                                })}
+                              </span>
                             </div>
 
                             {!isEditing && config.classes.length > 0 && (
@@ -293,7 +304,7 @@ export function ProjectManagerDialog({
                                   className="h-8"
                                   onClick={() => onSwitchProject(config.id)}
                                 >
-                                  Открыть
+                                  {t("open")}
                                 </Button>
                               )}
                               <Button
@@ -302,7 +313,7 @@ export function ProjectManagerDialog({
                                 size="sm"
                                 className="h-8 px-2"
                                 onClick={() => startRenaming(config)}
-                                title="Переименовать проект"
+                                title={t("rename_project")}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
@@ -312,7 +323,7 @@ export function ProjectManagerDialog({
                                 size="sm"
                                 className="h-8 px-2"
                                 onClick={() => onDuplicateProject(config.id)}
-                                title="Дублировать проект"
+                                title={t("duplicate_project")}
                               >
                                 <CopyPlus className="h-3.5 w-3.5" />
                               </Button>
@@ -321,8 +332,8 @@ export function ProjectManagerDialog({
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 px-2 text-red-500 hover:text-red-600"
-                                onClick={() => handleDelete(config)}
-                                title="Удалить проект"
+                                onClick={() => setPendingDeleteConfig(config)}
+                                title={t("delete_project")}
                               >
                                 <Trash className="h-3.5 w-3.5" />
                               </Button>
@@ -338,14 +349,14 @@ export function ProjectManagerDialog({
 
             <div className="border-t border-zinc-200 bg-zinc-50/50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/20 lg:border-t-0 lg:border-l">
               <div className="font-medium text-zinc-900 dark:text-zinc-50">
-                Что можно делать
+                {t("project_actions")}
               </div>
               <div className="mt-3 space-y-2 text-zinc-500 dark:text-zinc-400">
-                <div>Переключаться между проектами из одного списка.</div>
-                <div>Переименовывать проект прямо на месте.</div>
-                <div>Дублировать и удалять без вложенных меню.</div>
-                <div>Быстро найти проект по имени, классу или addon.</div>
-                <div>Создать новый проект или импортировать `config.cpp` сверху.</div>
+                <div>{t("project_actions_1")}</div>
+                <div>{t("project_actions_2")}</div>
+                <div>{t("project_actions_3")}</div>
+                <div>{t("project_actions_4")}</div>
+                <div>{t("project_actions_5")}</div>
               </div>
             </div>
           </div>
@@ -362,16 +373,16 @@ export function ProjectManagerDialog({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Удалить проект?</DialogTitle>
+            <DialogTitle>{t("delete_project_title")}</DialogTitle>
             <DialogDescription>
               {pendingDeleteConfig
-                ? `Проект "${pendingDeleteConfig.name}" будет удалён без возможности восстановления через корзину.`
-                : "Подтвердите удаление проекта."}
+                ? t("delete_project_desc", { name: pendingDeleteConfig.name })
+                : t("confirm_project_delete")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="rounded-xl border border-red-200 bg-red-50/70 px-4 py-3 text-sm text-red-700 dark:border-red-950 dark:bg-red-950/30 dark:text-red-300">
-            Это действие нельзя отменить.
+            {t("action_irreversible")}
           </div>
 
           <DialogFooter>
@@ -380,10 +391,10 @@ export function ProjectManagerDialog({
               variant="outline"
               onClick={() => setPendingDeleteConfig(null)}
             >
-              Отмена
+              {t("cancel")}
             </Button>
             <Button type="button" variant="destructive" onClick={confirmDelete}>
-              Удалить проект
+              {t("delete_project_confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

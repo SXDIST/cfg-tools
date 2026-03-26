@@ -17,9 +17,11 @@ import {
   buildConfigsZip,
   getSafeConfigFileStem,
 } from "@/lib/config-export";
+import { translateImportErrorMessage } from "@/lib/i18n";
 import { importFromCppText } from "@/lib/import-utils";
 import { useAppStore } from "@/lib/store";
 import { ImportFeedbackDialog } from "./import-feedback-dialog";
+import { useLocale } from "./locale-provider";
 import { ProjectManagerDialog } from "./project-manager-dialog";
 import { Button } from "./ui/button";
 import {
@@ -35,30 +37,12 @@ interface ImportFeedbackState {
   tone: "success" | "error";
 }
 
-function getImportFeedbackState(
-  result: { success: boolean; error?: string },
-): ImportFeedbackState {
-  if (result.success) {
-    return {
-      title: "Импорт завершён",
-      description: "config.cpp успешно добавлен в список проектов.",
-      tone: "success",
-    };
-  }
-
-  return {
-    title: "Не удалось импортировать config.cpp",
-    description:
-      result.error || "Во время импорта произошла неизвестная ошибка.",
-    tone: "error",
-  };
-}
-
 export function Header() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
   const [importFeedback, setImportFeedback] =
     useState<ImportFeedbackState | null>(null);
+  const { locale, setLocale, t } = useLocale();
 
   const configs = useAppStore((s) => s.configs);
   const activeConfigId = useAppStore((s) => s.activeConfigId);
@@ -113,12 +97,26 @@ export function Header() {
     try {
       const text = await file.text();
       const result = importFromCppText(importConfigFromCpp, text, file.name);
-      setImportFeedback(getImportFeedbackState(result));
+
+      if (result.success) {
+        setImportFeedback({
+          title: t("import_completed"),
+          description: t("import_completed_desc"),
+          tone: "success",
+        });
+      } else {
+        setImportFeedback({
+          title: t("import_failed"),
+          description:
+            translateImportErrorMessage(locale, result.error) ||
+            t("import_failed_desc"),
+          tone: "error",
+        });
+      }
     } catch {
       setImportFeedback({
-        title: "Не удалось прочитать файл",
-        description:
-          "Проверьте, что выбран корректный .cpp файл и попробуйте ещё раз.",
+        title: t("read_file_failed"),
+        description: t("read_file_failed_desc"),
         tone: "error",
       });
     } finally {
@@ -211,6 +209,28 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-zinc-700 dark:text-zinc-300"
+              title={t("language")}
+            >
+              {locale.toUpperCase()}
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={() => setLocale("ru")}>
+              {t("russian")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocale("en")}>
+              {t("english")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           variant="outline"
           size="sm"
@@ -238,15 +258,11 @@ export function Header() {
           size="sm"
           className="h-8 max-w-[360px] gap-1.5 text-zinc-700 dark:text-zinc-300"
           onClick={() => setProjectManagerOpen(true)}
-          title={
-            activeConfigStats
-              ? `${activeConfigStats.classes} классов, ${activeConfigStats.addons} addons`
-              : "Открыть менеджер проектов"
-          }
+          title={t("open_project_manager")}
         >
           <FolderOpen className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 truncate">
-            {activeConfig?.name || "Проекты"}
+            {activeConfig?.name || t("projects")}
           </span>
           {activeConfigStats && (
             <span className="hidden rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 md:inline-flex">
@@ -264,7 +280,7 @@ export function Header() {
               className="h-8 gap-1.5 text-zinc-700 dark:text-zinc-300"
             >
               <Download className="h-3.5 w-3.5" />
-              Экспорт
+              {t("export")}
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
@@ -274,14 +290,14 @@ export function Header() {
               disabled={!activeConfig}
             >
               <Copy className="mr-2 h-4 w-4" />
-              Текущий конфиг (.cpp)
+              {t("export_current")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleExportAll}
               disabled={configs.length === 0}
             >
               <Download className="mr-2 h-4 w-4" />
-              Все конфиги (.zip)
+              {t("export_all")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
