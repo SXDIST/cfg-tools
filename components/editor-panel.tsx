@@ -16,12 +16,6 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { HelpCircle, ChevronDown, ChevronRight, Plus, Trash, X, Copy, GripVertical } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./ui/tooltip";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -79,11 +73,11 @@ const SCOPE_OPTIONS = [
 ];
 
 const CATEGORY_GROUP_LABELS: Record<CategoryGroup, string> = {
-  core: "Основа предмета",
-  storage: "Инвентарь и содержимое",
-  apparel: "Одежда и защита",
-  combat: "Бой и звук",
-  systems: "Питание и спецсистемы",
+  core: "category_group_core",
+  storage: "category_group_storage",
+  apparel: "category_group_apparel",
+  combat: "category_group_combat",
+  systems: "category_group_systems",
 };
 
 const ORDERED_CATALOG = [...CATALOG].sort((a, b) => a.order - b.order);
@@ -140,6 +134,65 @@ function parseCustomArrayValue(type: CustomParamType, value: string) {
     );
 }
 
+function getParamDisplayLabel(
+  t: (key: string, params?: Record<string, string | number | boolean | undefined>) => string,
+  param: { key: string; label: string },
+) {
+  if (param.key === "male") {
+    return t("male_and_female_models");
+  }
+
+  if (param.key === "proxyModelName") {
+    return t("proxy_model_and_slots");
+  }
+
+  return param.label;
+}
+
+function getParamDisplayDescription(
+  t: (key: string, params?: Record<string, string | number | boolean | undefined>) => string,
+  param: { key: string; description: string },
+) {
+  if (param.key === "male") {
+    return t("add_male_female_models");
+  }
+
+  if (param.key === "proxyModelName") {
+    return t("proxy_model_and_slots_desc");
+  }
+
+  return param.description;
+}
+
+function HelpTooltip({
+  label,
+  example,
+}: {
+  label: string;
+  example?: string;
+}) {
+  return (
+    <div className="group/tooltip relative inline-flex">
+      <button
+        type="button"
+        className="inline-flex h-4 w-4 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-600 focus-visible:outline-none focus-visible:text-zinc-600 dark:hover:text-zinc-300 dark:focus-visible:text-zinc-300"
+        aria-label={label}
+      >
+        <HelpCircle className="h-3.5 w-3.5 cursor-help" />
+      </button>
+      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-max max-w-65 -translate-y-1/2 rounded-md bg-foreground px-3 py-1.5 text-xs text-background opacity-0 shadow-md transition-opacity duration-150 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100">
+        <p className="text-sm">{label}</p>
+        {example && (
+          <p className="mt-1 text-xs text-zinc-300">
+            <span className="font-medium">Example:</span>{" "}
+            {example}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const CustomParamsSection = memo(function CustomParamsSection({
   customParams,
   configId,
@@ -149,6 +202,7 @@ const CustomParamsSection = memo(function CustomParamsSection({
   configId: string;
   tabId: string;
 }) {
+  const { t } = useLocale();
   const addCustomParam = useAppStore((s) => s.addCustomParam);
   const updateCustomParam = useAppStore((s) => s.updateCustomParam);
   const deleteCustomParam = useAppStore((s) => s.deleteCustomParam);
@@ -162,11 +216,9 @@ const CustomParamsSection = memo(function CustomParamsSection({
       <AccordionItem value="custom-params" className="border-b-0">
         <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
           <div className="flex flex-col items-start gap-1">
-            <span className="font-semibold text-sm">
-              Пользовательские параметры
-            </span>
+            <span className="font-semibold text-sm">{t("custom_params")}</span>
             <span className="text-xs text-zinc-500 font-normal">
-              Любые свои поля, которых нет в стандартном каталоге.
+              {t("custom_params_desc")}
             </span>
           </div>
         </AccordionTrigger>
@@ -178,12 +230,12 @@ const CustomParamsSection = memo(function CustomParamsSection({
               className="h-8 shrink-0"
               onClick={() => addCustomParam(configId, tabId)}
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить параметр
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("add_param")}
             </Button>
           </div>
           <div className="flex flex-col gap-3">
             {customParams.length === 0 && (
-              <EmptyState message="Нет пользовательских параметров. Нажмите «Добавить параметр»." />
+              <EmptyState message={t("custom_params_desc")} />
             )}
             {customParams.map((param) => {
               const arrayValue = Array.isArray(param.value)
@@ -199,7 +251,7 @@ const CustomParamsSection = memo(function CustomParamsSection({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1">
                       <div>
                         <Label className="text-xs text-zinc-500 mb-1 block">
-                          Имя параметра
+                          {t("param_name")}
                         </Label>
                         <Input
                           value={param.key}
@@ -229,7 +281,7 @@ const CustomParamsSection = memo(function CustomParamsSection({
                       </div>
                       <div>
                         <Label className="text-xs text-zinc-500 mb-1 block">
-                          Тип
+                          {t("type")}
                         </Label>
                         <Select
                           value={param.type}
@@ -272,7 +324,7 @@ const CustomParamsSection = memo(function CustomParamsSection({
 
                   <div>
                     <Label className="text-xs text-zinc-500 mb-1 block">
-                      Значение
+                      {t("value")}
                     </Label>
 
                     {param.type === "string" && (
@@ -355,6 +407,7 @@ const SlotsSection = memo(function SlotsSection({
   slots: SlotData[];
   configId: string;
 }) {
+  const { t } = useLocale();
   const addSlot = useAppStore((s) => s.addSlot);
   const updateSlot = useAppStore((s) => s.updateSlot);
   const deleteSlot = useAppStore((s) => s.deleteSlot);
@@ -364,9 +417,9 @@ const SlotsSection = memo(function SlotsSection({
       <AccordionItem value="slots" className="border-b-0">
         <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
           <div className="flex flex-col items-start gap-1">
-            <span className="font-semibold text-sm">Слоты (CfgSlots)</span>
+            <span className="font-semibold text-sm">{t("slots_title")}</span>
             <span className="text-xs text-zinc-500 font-normal">
-              Определение слотов для прикрепления предметов.
+              {t("slots_desc")}
             </span>
           </div>
         </AccordionTrigger>
@@ -378,12 +431,12 @@ const SlotsSection = memo(function SlotsSection({
               className="h-8 shrink-0"
               onClick={() => addSlot(configId)}
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("add")}
             </Button>
           </div>
           <div className="flex flex-col gap-3">
           {slots.length === 0 && (
-            <EmptyState message="Нет слотов. Нажмите «Добавить»." />
+            <EmptyState message={t("no_slots")} />
           )}
           {slots.map((slot) => (
             <div
@@ -393,7 +446,7 @@ const SlotsSection = memo(function SlotsSection({
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
                   <Label className="text-xs text-zinc-500 mb-1 block">
-                    Имя слота
+                    {t("slot_name")}
                   </Label>
                   <div className="flex items-center">
                     <span className="h-8 px-2 flex items-center text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-r-0 border-zinc-200 dark:border-zinc-700 rounded-l-md text-zinc-500 select-none">
@@ -490,6 +543,7 @@ const ProxiesSection = memo(function ProxiesSection({
   proxies: ProxyData[];
   configId: string;
 }) {
+  const { t } = useLocale();
   const addProxy = useAppStore((s) => s.addProxy);
   const updateProxy = useAppStore((s) => s.updateProxy);
   const deleteProxy = useAppStore((s) => s.deleteProxy);
@@ -499,9 +553,9 @@ const ProxiesSection = memo(function ProxiesSection({
       <AccordionItem value="proxies" className="border-b-0">
         <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
           <div className="flex flex-col items-start gap-1">
-            <span className="font-semibold text-sm">Прокси объекты (CfgNonAIVehicles)</span>
+            <span className="font-semibold text-sm">{t("proxies_title")}</span>
             <span className="text-xs text-zinc-500 font-normal">
-              Объявление прикрепляемых частей (ProxyAttachment).
+              {t("proxies_desc")}
             </span>
           </div>
         </AccordionTrigger>
@@ -513,12 +567,12 @@ const ProxiesSection = memo(function ProxiesSection({
               className="h-8 shrink-0"
               onClick={() => addProxy(configId)}
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("add")}
             </Button>
           </div>
           <div className="flex flex-col gap-3">
           {proxies.length === 0 && (
-            <EmptyState message="Нет прокси. Нажмите «Добавить»." />
+            <EmptyState message={t("no_proxies")} />
           )}
           {proxies.map((proxy) => (
             <div
@@ -528,7 +582,7 @@ const ProxiesSection = memo(function ProxiesSection({
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
                   <Label className="text-xs text-zinc-500 mb-1 block">
-                    Имя прокси
+                    {t("proxy_name")}
                   </Label>
                   <div className="flex items-center">
                     <span className="h-8 px-2 flex items-center text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-r-0 border-zinc-200 dark:border-zinc-700 rounded-l-md text-zinc-500 select-none">
@@ -569,7 +623,7 @@ const ProxiesSection = memo(function ProxiesSection({
                       })
                     }
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Добавить
+                    <Plus className="w-3 h-3 mr-1" /> {t("add")}
                   </Button>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -606,7 +660,7 @@ const ProxiesSection = memo(function ProxiesSection({
                   ))}
                   {proxy.inventorySlots.length === 0 && (
                     <p className="text-[10px] text-zinc-400 italic">
-                      Нет слотов
+                      {t("no_proxy_slots")}
                     </p>
                   )}
                 </div>
@@ -635,6 +689,7 @@ const RetexturesSection = memo(function RetexturesSection({
   tabId: string;
   className: string;
 }) {
+  const { t } = useLocale();
   const addChildClass = useAppStore((s) => s.addChildClass);
   const updateChildClass = useAppStore((s) => s.updateChildClass);
   const deleteChildClass = useAppStore((s) => s.deleteChildClass);
@@ -680,9 +735,9 @@ const RetexturesSection = memo(function RetexturesSection({
       <AccordionItem value="retextures" className="border-b-0">
         <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
           <div className="flex flex-col items-start gap-1">
-            <span className="font-semibold text-sm">Варианты / Ретекстуры</span>
+            <span className="font-semibold text-sm">{t("retextures_title")}</span>
             <span className="text-xs text-zinc-500 font-normal">
-              Дочерние классы, наследующие параметры этого класса.
+              {t("retextures_desc")}
             </span>
           </div>
         </AccordionTrigger>
@@ -696,12 +751,12 @@ const RetexturesSection = memo(function RetexturesSection({
                 addChildClass(configId, tabId, `${className}_Variant`)
               }
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Добавить
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("add")}
             </Button>
           </div>
           <div className="flex flex-col gap-3">
           {(!childClasses || childClasses.length === 0) && (
-            <EmptyState message="Нет ретекстур. Нажмите «Добавить»." />
+            <EmptyState message={t("no_retextures")} />
           )}
           {childClasses?.map((child) => (
             <div
@@ -720,7 +775,7 @@ const RetexturesSection = memo(function RetexturesSection({
               <div className="flex gap-3 pr-8">
                 <div className="flex-1">
                   <Label className="text-xs text-zinc-500 mb-1 block">
-                    Имя класса
+                    {t("class_name")}
                   </Label>
                   <Input
                     value={child.name}
@@ -749,7 +804,7 @@ const RetexturesSection = memo(function RetexturesSection({
                       });
                     }}
                     className="h-8 text-sm"
-                    searchPlaceholder="Выберите scope..."
+                    searchPlaceholder={t("choose_scope")}
                   />
                 </div>
                 <div className="w-28">
@@ -784,8 +839,8 @@ const RetexturesSection = memo(function RetexturesSection({
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-xs text-zinc-500">
                         {field === "hiddenSelectionsTextures"
-                          ? "Текстуры"
-                          : "Материалы"}
+                          ? t("textures")
+                          : t("materials")}
                       </Label>
                       <Button
                         variant="ghost"
@@ -793,7 +848,7 @@ const RetexturesSection = memo(function RetexturesSection({
                         className="h-6 px-2 text-xs"
                         onClick={() => handleAddChildArrayItem(child.id, field)}
                       >
-                        <Plus className="w-3 h-3 mr-1" /> Добавить
+                        <Plus className="w-3 h-3 mr-1" /> {t("add")}
                       </Button>
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -830,7 +885,7 @@ const RetexturesSection = memo(function RetexturesSection({
                       ))}
                       {(!child[field] || child[field].length === 0) && (
                         <p className="text-[10px] text-zinc-400 italic">
-                          Пусто
+                          {t("empty")}
                         </p>
                       )}
                     </div>
@@ -855,6 +910,7 @@ export function EditorPanel() {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
+  const [selectedParamKeys, setSelectedParamKeys] = useState<string[]>([]);
   const [dialogCategoryGroupsOpen, setDialogCategoryGroupsOpen] = useState<Record<CategoryGroup, boolean>>(
     DEFAULT_DIALOG_GROUP_OPEN_STATE,
   );
@@ -862,6 +918,9 @@ export function EditorPanel() {
     DEFAULT_DIALOG_SECTION_OPEN_STATE,
   );
   const [enabledParamQuery, setEnabledParamQuery] = useState("");
+  const [openEnabledSectionIds, setOpenEnabledSectionIds] = useState<string[]>(
+    () => ORDERED_CATALOG.map((category) => category.id),
+  );
   const [newAddonInput, setNewAddonInput] = useState("");
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
   const [dropTabIndex, setDropTabIndex] = useState<number | null>(null);
@@ -887,9 +946,9 @@ export function EditorPanel() {
   if (!config) {
     return (
       <div className="flex flex-col h-full items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-400">Нет открытых проектов</p>
+        <p className="text-sm text-zinc-400">{t("no_open_projects")}</p>
         <Button onClick={() => addConfig()}>
-          <Plus className="w-4 h-4 mr-2" /> Создать проект
+          <Plus className="w-4 h-4 mr-2" /> {t("create_project")}
         </Button>
       </div>
     );
@@ -902,9 +961,9 @@ export function EditorPanel() {
   if (!activeTab) {
     return (
       <div className="flex flex-col h-full items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-400">Нет классов в проекте</p>
+        <p className="text-sm text-zinc-400">{t("no_classes_in_project")}</p>
         <Button onClick={() => addTab(config.id)}>
-          <Plus className="w-4 h-4 mr-2" /> Добавить класс
+          <Plus className="w-4 h-4 mr-2" /> {t("add_class")}
         </Button>
       </div>
     );
@@ -912,45 +971,66 @@ export function EditorPanel() {
 
   // ── Handlers ──
   const handleToggle = (key: string, checked: boolean) => {
-    const updates: Record<string, boolean> = { [key]: checked };
-    if (key === "male") updates["female"] = checked;
-    if (key === "female") updates["male"] = checked;
-
+    const allParams = ORDERED_CATALOG.flatMap((category) => category.params);
+    const nextEnabledParams = { ...activeTab.enabledParams };
     const nextValues = { ...activeTab.values };
-    if (checked) {
-      const allParams = ORDERED_CATALOG.flatMap((category) => category.params);
-      const target = allParams.find((p) => p.key === key);
-      if (target && nextValues[key] === undefined && target.defaultValue !== undefined) {
-        nextValues[key] = target.defaultValue;
+    const keysToToggle = new Set([key]);
+
+    if (key === "male") keysToToggle.add("female");
+    if (key === "female") keysToToggle.add("male");
+
+    keysToToggle.forEach((paramKey) => {
+      nextEnabledParams[paramKey] = checked;
+
+      if (!checked) {
+        return;
       }
 
-      if (key === "male") {
-        const femaleParam = allParams.find((p) => p.key === "female");
-        if (
-          femaleParam &&
-          nextValues["female"] === undefined &&
-          femaleParam.defaultValue !== undefined
-        ) {
-          nextValues["female"] = femaleParam.defaultValue;
-        }
+      const target = allParams.find((param) => param.key === paramKey);
+      if (
+        target &&
+        nextValues[paramKey] === undefined &&
+        target.defaultValue !== undefined
+      ) {
+        nextValues[paramKey] = target.defaultValue;
       }
-
-      if (key === "female") {
-        const maleParam = allParams.find((p) => p.key === "male");
-        if (
-          maleParam &&
-          nextValues["male"] === undefined &&
-          maleParam.defaultValue !== undefined
-        ) {
-          nextValues["male"] = maleParam.defaultValue;
-        }
-      }
-    }
+    });
 
     updateActiveTab({
-      enabledParams: { ...activeTab.enabledParams, ...updates },
+      enabledParams: nextEnabledParams,
       values: nextValues,
     });
+  };
+
+  const applySelectedParams = () => {
+    const allParams = ORDERED_CATALOG.flatMap((category) => category.params);
+    const nextEnabledParams = { ...activeTab.enabledParams };
+    const nextValues = { ...activeTab.values };
+    const keysToEnable = new Set<string>();
+
+    selectedParamKeys.forEach((key) => {
+      keysToEnable.add(key);
+      if (key === "male") keysToEnable.add("female");
+      if (key === "female") keysToEnable.add("male");
+    });
+
+    keysToEnable.forEach((key) => {
+      nextEnabledParams[key] = true;
+      const target = allParams.find((param) => param.key === key);
+      if (
+        target &&
+        nextValues[key] === undefined &&
+        target.defaultValue !== undefined
+      ) {
+        nextValues[key] = target.defaultValue;
+      }
+    });
+
+    updateActiveTab({
+      enabledParams: nextEnabledParams,
+      values: nextValues,
+    });
+    setSelectedParamKeys([]);
   };
 
   const normalizedEnabledParamQuery = enabledParamQuery.trim().toLowerCase();
@@ -1162,10 +1242,8 @@ export function EditorPanel() {
           ════════════════════════════════════ */}
           <Card>
             <CardHeader>
-              <CardTitle>Классы</CardTitle>
-              <CardDescription>
-                Каждая вкладка — отдельный класс конфигурации.
-              </CardDescription>
+              <CardTitle>{t("class_section_title")}</CardTitle>
+              <CardDescription>{t("class_section_desc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Class tabs row */}
@@ -1245,7 +1323,7 @@ export function EditorPanel() {
                   size="icon"
                   className="h-8 w-8 shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-dashed border-zinc-300/80 dark:border-zinc-700"
                   onClick={() => addTab(config.id)}
-                  title="Добавить новый класс"
+                  title={t("add_new_class")}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -1255,7 +1333,7 @@ export function EditorPanel() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 block">
-                    Имя класса
+                    {t("class_name")}
                   </Label>
                   <Input
                     value={activeTab.className}
@@ -1268,7 +1346,7 @@ export function EditorPanel() {
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 block">
-                    Базовый класс
+                    {t("base_class")}
                   </Label>
                   <Input
                     value={activeTab.baseClass || ""}
@@ -1283,7 +1361,7 @@ export function EditorPanel() {
 
               {/* Preset + Duplicate */}
               <div className="flex items-center gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                <span className="text-xs text-zinc-400">Заполнить:</span>
+                <span className="text-xs text-zinc-400">{t("fill")}</span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="h-7 text-xs">
@@ -1302,7 +1380,7 @@ export function EditorPanel() {
                   className="h-7 text-xs text-zinc-500"
                   onClick={() => duplicateTab(config.id, activeTab.id)}
                 >
-                  <Copy className="w-3 h-3 mr-1" /> Дублировать вкладку
+                  <Copy className="w-3 h-3 mr-1" /> {t("duplicate_tab")}
                 </Button>
               </div>
             </CardContent>
@@ -1315,34 +1393,54 @@ export function EditorPanel() {
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <CardTitle>Параметры класса</CardTitle>
-                  <CardDescription>
-                    Добавьте нужные параметры для генерации конфига.
-                  </CardDescription>
+                  <CardTitle>{t("class_parameters_title")}</CardTitle>
+                  <CardDescription>{t("class_parameters_desc")}</CardDescription>
                 </div>
                 {/* Accent "Add Parameter" button (Dialog) */}
-                <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+                <Dialog
+                  open={openDialog}
+                  onOpenChange={(nextOpen) => {
+                    setOpenDialog(nextOpen);
+                    if (!nextOpen) {
+                      setSelectedParamKeys([]);
+                    }
+                  }}
+                >
                   <DialogTrigger asChild>
                     <Button
                       size="sm"
                       className="h-8 gap-1.5 shrink-0 bg-zinc-900 hover:bg-zinc-700 text-white dark:bg-zinc-100 dark:hover:bg-zinc-300 dark:text-zinc-900"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      Добавить параметр
+                      {t("add_parameter")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-[min(1500px,calc(100vw-2rem))] sm:!max-w-[min(1500px,calc(100vw-2rem))] p-0 overflow-hidden flex flex-col h-[min(90vh,920px)] bg-white dark:bg-zinc-950">
-                    <DialogHeader className="p-4 pb-2 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                      <DialogTitle>Добавление параметра</DialogTitle>
-                      <DialogDescription>
-                        Выберите параметр для добавления в класс. Можно фильтровать по категориям или использовать поиск.
-                      </DialogDescription>
+                    <DialogHeader className="shrink-0 border-b border-zinc-200 p-4 pb-2 pr-14 dark:border-zinc-800">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <DialogTitle>{t("add_parameter_title")}</DialogTitle>
+                          <DialogDescription>
+                            {t("add_parameter_desc")}
+                          </DialogDescription>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="mt-0.5 shrink-0 rounded-full px-3 py-1 text-xs font-medium"
+                        >
+                          {t("selected_parameter_count", {
+                            count: selectedParamKeys.length,
+                          })}
+                        </Badge>
+                      </div>
                     </DialogHeader>
 
                     <div className="flex min-h-0 flex-1 overflow-hidden">
                       {/* Sidebar / Categories */}
                       <div className="w-[280px] border-r border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/30">
-                        <div className="p-3 font-semibold text-xs text-zinc-500 uppercase tracking-wider">Категории</div>
+                        <div className="p-3 font-semibold text-xs text-zinc-500 uppercase tracking-wider">
+                          {t("categories")}
+                        </div>
                         <ScrollArea className="min-h-0 flex-1">
                           <div className="px-2 pb-2 flex flex-col gap-1">
                             <button
@@ -1353,7 +1451,7 @@ export function EditorPanel() {
                               }`}
                               onClick={() => setActiveCategoryFilter(null)}
                             >
-                              Все параметры
+                              {t("all_parameters")}
                             </button>
                             {CATALOG_GROUPS.map(([groupId, categories]) => {
                               const isOpen = dialogCategoryGroupsOpen[groupId] ?? true;
@@ -1370,7 +1468,7 @@ export function EditorPanel() {
                                       }))
                                     }
                                   >
-                                    <span>{CATEGORY_GROUP_LABELS[groupId]}</span>
+                                    <span>{t(CATEGORY_GROUP_LABELS[groupId])}</span>
                                     {isOpen ? (
                                       <ChevronDown className="h-3.5 w-3.5" />
                                     ) : (
@@ -1416,7 +1514,7 @@ export function EditorPanel() {
                       <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950">
                         <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                            <Input
-                             placeholder="Поиск параметра по имени или описанию..."
+                             placeholder={t("parameter_search_placeholder")}
                              className="h-9"
                              value={searchParamQuery}
                              onChange={(e) => setSearchParamQuery(e.target.value)}
@@ -1495,7 +1593,9 @@ export function EditorPanel() {
                                                 </div>
                                               )}
                                               <div className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
-                                                Параметров: {unused.length}
+                                                {t("parameter_count", {
+                                                  count: unused.length,
+                                                })}
                                               </div>
                                             </div>
                                             {isSectionOpen ? (
@@ -1505,36 +1605,48 @@ export function EditorPanel() {
                                             )}
                                           </button>
                                            {isSectionOpen && <div className="grid gap-2">
-                                            {unused.map((param) => (
-                                              <div
-                                                key={param.key}
-                                                className="group border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-all cursor-pointer flex items-center justify-between"
-                                                onClick={() => {
-                                                  handleToggle(param.key, true);
-                                                  setOpenDialog(false);
-                                                }}
-                                              >
-                                                <div>
-                                                  <div className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mb-0.5">
-                                                    {param.key === "male"
-                                                      ? "Male & Female Models"
-                                                      : param.key === "proxyModelName"
-                                                        ? "Proxy Model & Slots"
-                                                        : param.label}
+                                            {unused.map((param) => {
+                                              const isSelected =
+                                                selectedParamKeys.includes(param.key);
+
+                                              return (
+                                                <div
+                                                  key={param.key}
+                                                  className={`group border rounded-lg p-3 transition-all cursor-pointer flex items-center justify-between ${
+                                                    isSelected
+                                                      ? "border-blue-500 bg-blue-50/70 dark:border-blue-500 dark:bg-blue-500/10"
+                                                      : "border-zinc-200 dark:border-zinc-800 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+                                                  }`}
+                                                  onClick={() => {
+                                                    setSelectedParamKeys((prev) =>
+                                                      prev.includes(param.key)
+                                                        ? prev.filter((key) => key !== param.key)
+                                                        : [...prev, param.key],
+                                                    );
+                                                  }}
+                                                >
+                                                  <div>
+                                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mb-0.5">
+                                                      {getParamDisplayLabel(t, param)}
+                                                    </div>
+                                                    <div className="text-xs text-zinc-500">
+                                                      {getParamDisplayDescription(t, param)}
+                                                    </div>
                                                   </div>
-                                                  <div className="text-xs text-zinc-500">
-                                                    {param.key === "male"
-                                                      ? "Добавить мужскую и женскую модели"
-                                                      : param.key === "proxyModelName"
-                                                        ? "Название прокси и слоты инвентаря"
-                                                        : param.description}
-                                                  </div>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={`h-8 w-8 shrink-0 bg-white dark:bg-zinc-800 pointer-events-none ${
+                                                      isSelected
+                                                        ? "opacity-100"
+                                                        : "opacity-0 group-hover:opacity-100"
+                                                    }`}
+                                                  >
+                                                    <Plus className="w-4 h-4 text-blue-500" />
+                                                  </Button>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0 bg-white dark:bg-zinc-800 pointer-events-none">
-                                                   <Plus className="w-4 h-4 text-blue-500" />
-                                                </Button>
-                                              </div>
-                                            ))}
+                                              );
+                                            })}
                                           </div>}
                                         </div>
                                       );
@@ -1542,7 +1654,7 @@ export function EditorPanel() {
 
                                    {totalFound === 0 && (
                                       <div className="py-10 text-center text-sm text-zinc-500">
-                                        По вашему запросу ничего не найдено.
+                                        {t("no_query_results")}
                                       </div>
                                    )}
                                  </>
@@ -1552,58 +1664,78 @@ export function EditorPanel() {
                         </ScrollArea>
                       </div>
                     </div>
+                    <div className="flex items-center justify-between gap-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {t("add_parameter_desc")}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setOpenDialog(false)}
+                        >
+                          {t("cancel")}
+                        </Button>
+                        <Button
+                          onClick={applySelectedParams}
+                          disabled={selectedParamKeys.length === 0}
+                        >
+                          {t("add_selected_parameters")}
+                        </Button>
+                      </div>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
             </CardHeader>
 
             <CardContent>
-              <TooltipProvider>
-                {/* Empty state */}
-                {allEnabledParamCount === 0 && (
-                  <EmptyState message="Нет добавленных параметров. Нажмите «Добавить параметр», чтобы начать." />
-                )}
+              {/* Empty state */}
+              {allEnabledParamCount === 0 && (
+                <EmptyState message={t("enabled_params_empty")} />
+              )}
 
-                {/* Parameter groups */}
-                {allEnabledParamCount > 0 && (
-                  <div className="flex flex-col gap-4">
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/30 p-3">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                            Быстрый поиск по добавленным параметрам
-                          </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Фильтр ищет по названию, ключу и описанию параметра.
-                          </p>
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className="w-fit rounded-full px-3 py-1 text-xs font-medium"
-                        >
-                          {filteredEnabledParamCount === allEnabledParamCount
-                            ? `Показано: ${allEnabledParamCount}`
-                            : `Показано: ${filteredEnabledParamCount} из ${allEnabledParamCount}`}
-                        </Badge>
+              {/* Parameter groups */}
+              {allEnabledParamCount > 0 && (
+                <div className="flex flex-col gap-4">
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/30 p-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          {t("quick_search_title")}
+                        </p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {t("quick_search_desc")}
+                        </p>
                       </div>
-                      <Input
-                        value={enabledParamQuery}
-                        onChange={(e) => setEnabledParamQuery(e.target.value)}
-                        placeholder="Найти среди уже добавленных параметров..."
-                        className="mt-3 h-9 bg-white dark:bg-zinc-950"
-                      />
-                    </div>
-
-                    {filteredEnabledParamCount === 0 ? (
-                      <EmptyState message="По текущему фильтру ничего не найдено. Попробуйте изменить запрос или очистить поиск." />
-                    ) : (
-                      <Accordion
-                        type="multiple"
-                        defaultValue={parameterSections.map(
-                          (section) => section.category.id,
-                        )}
-                        className="flex flex-col gap-3"
+                      <Badge
+                        variant="secondary"
+                        className="w-fit rounded-full px-3 py-1 text-xs font-medium"
                       >
+                        {filteredEnabledParamCount === allEnabledParamCount
+                          ? t("shown_count", { count: allEnabledParamCount })
+                          : t("shown_count_filtered", {
+                              shown: filteredEnabledParamCount,
+                              total: allEnabledParamCount,
+                            })}
+                      </Badge>
+                    </div>
+                    <Input
+                      value={enabledParamQuery}
+                      onChange={(e) => setEnabledParamQuery(e.target.value)}
+                      placeholder={t("enabled_search_placeholder")}
+                      className="mt-3 h-9 bg-white dark:bg-zinc-950"
+                    />
+                  </div>
+
+                  {filteredEnabledParamCount === 0 ? (
+                    <EmptyState message={t("enabled_filter_empty")} />
+                  ) : (
+                    <Accordion
+                      type="multiple"
+                      value={openEnabledSectionIds}
+                      onValueChange={setOpenEnabledSectionIds}
+                      className="flex flex-col gap-3"
+                    >
                         {parameterSections.map(({ category, enabledInCat }) => (
                           <AccordionItem
                             key={category.id}
@@ -1621,8 +1753,10 @@ export function EditorPanel() {
                                   </p>
                                   <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                                     {enabledInCat.length === 1
-                                      ? "1 параметр в этой группе"
-                                      : `${enabledInCat.length} параметров в этой группе`}
+                                      ? t("group_param_single")
+                                      : t("group_param_many", {
+                                          count: enabledInCat.length,
+                                        })}
                                   </p>
                                 </div>
                                 <Badge
@@ -1684,33 +1818,12 @@ export function EditorPanel() {
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-1.5">
                                     <Label className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
-                                      {param.key === "male"
-                                        ? "Male & Female Models"
-                                        : param.key === "proxyModelName"
-                                          ? "Proxy Model & Slots"
-                                          : param.label}
+                                      {getParamDisplayLabel(t, param)}
                                     </Label>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <HelpCircle className="w-3.5 h-3.5 cursor-help text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors" />
-                                      </TooltipTrigger>
-                                      <TooltipContent
-                                        side="right"
-                                        className="max-w-65"
-                                      >
-                                        <p className="text-sm">
-                                          {param.description}
-                                        </p>
-                                        {param.example && (
-                                          <p className="text-xs text-zinc-400 mt-1">
-                                            <span className="font-medium">
-                                              Example:
-                                            </span>{" "}
-                                            {param.example}
-                                          </p>
-                                        )}
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <HelpTooltip
+                                      label={getParamDisplayDescription(t, param)}
+                                      example={param.example}
+                                    />
                                   </div>
                                   <Button
                                     variant="ghost"
@@ -1751,9 +1864,13 @@ export function EditorPanel() {
                                       value={String(value ?? "")}
                                       placeholder="Выберите или введите значение..."
                                       allowCustom={param.allowCustom ?? true}
-                                      searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                      searchPlaceholder={t("find_param", {
+                                        label: param.label.toLowerCase(),
+                                      })}
                                       customOptionLabel={(customValue) =>
-                                        `Использовать своё значение: ${customValue}`
+                                        t("use_custom_value", {
+                                          value: customValue,
+                                        })
                                       }
                                     />
                                   )}
@@ -1776,7 +1893,7 @@ export function EditorPanel() {
                                       handleValueChange(param.key, val);
                                     }}
                                     className="h-8 text-sm"
-                                    searchPlaceholder="Выберите scope..."
+                                    searchPlaceholder={t("choose_scope")}
                                   />
                                 )}
 
@@ -1795,9 +1912,13 @@ export function EditorPanel() {
                                       }
                                       placeholder="Выберите или введите значение..."
                                       allowCustom={param.allowCustom ?? true}
-                                      searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                      searchPlaceholder={t("find_param", {
+                                        label: param.label.toLowerCase(),
+                                      })}
                                       customOptionLabel={(customValue) =>
-                                        `Использовать своё значение: ${customValue}`
+                                        t("use_custom_value", {
+                                          value: customValue,
+                                        })
                                       }
                                     />
                                   )}
@@ -1891,7 +2012,7 @@ export function EditorPanel() {
                                     }}
                                   >
                                     <SelectTrigger className="h-8 text-sm">
-                                      <SelectValue placeholder="Выберите значение..." />
+                                      <SelectValue placeholder={t("choose_value")} />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {param.selectOptions?.map((opt) => (
@@ -2063,7 +2184,7 @@ export function EditorPanel() {
                                       )}
                                       {(!value || value.length === 0) && (
                                         <p className="text-[10px] text-zinc-400 italic">
-                                          Список пуст
+                                          {t("list_empty")}
                                         </p>
                                       )}
                                       <Button
@@ -2074,8 +2195,7 @@ export function EditorPanel() {
                                           handleAddArrayItem(param.key)
                                         }
                                       >
-                                        <Plus className="w-3 h-3 mr-1" /> Добавить
-                                        элемент
+                                        <Plus className="w-3 h-3 mr-1" /> {t("add_item")}
                                       </Button>
                                     </div>
                                   )}
@@ -2099,7 +2219,7 @@ export function EditorPanel() {
                                                   e.target.value,
                                                 )
                                               }
-                                              placeholder="Значение..."
+                                              placeholder={t("value_placeholder")}
                                               className="h-8 text-sm font-mono flex-1"
                                             />
                                             <Button
@@ -2120,7 +2240,7 @@ export function EditorPanel() {
                                       )}
                                       {(!value || value.length === 0) && (
                                         <p className="text-[10px] text-zinc-400 italic">
-                                          Список пуст
+                                          {t("list_empty")}
                                         </p>
                                       )}
                                       <Button
@@ -2131,8 +2251,7 @@ export function EditorPanel() {
                                           handleAddArrayItem(param.key)
                                         }
                                       >
-                                        <Plus className="w-3 h-3 mr-1" /> Добавить
-                                        элемент
+                                        <Plus className="w-3 h-3 mr-1" /> {t("add_item")}
                                       </Button>
                                     </div>
                                   )}
@@ -2157,12 +2276,16 @@ export function EditorPanel() {
                                                   coerceSelectableValue(selectedValue, true),
                                                 )
                                               }
-                                              placeholder="Выберите или введите значение..."
+                                              placeholder={t("select_or_enter_value")}
                                               className="h-8 text-sm font-mono flex-1"
                                               allowCustom={param.allowCustom ?? true}
-                                              searchPlaceholder={`Найдите ${param.label.toLowerCase()}...`}
+                                              searchPlaceholder={t("find_param", {
+                                                label: param.label.toLowerCase(),
+                                              })}
                                               customOptionLabel={(customValue) =>
-                                                `Использовать своё значение: ${customValue}`
+                                                t("use_custom_value", {
+                                                  value: customValue,
+                                                })
                                               }
                                             />
                                             <Button
@@ -2183,7 +2306,7 @@ export function EditorPanel() {
                                       )}
                                       {(!value || value.length === 0) && (
                                         <p className="text-[10px] text-zinc-400 italic">
-                                          Список пуст
+                                          {t("list_empty")}
                                         </p>
                                       )}
                                       <Button
@@ -2194,8 +2317,7 @@ export function EditorPanel() {
                                           handleAddArrayItem(param.key, 0)
                                         }
                                       >
-                                        <Plus className="w-3 h-3 mr-1" /> Добавить
-                                        элемент
+                                        <Plus className="w-3 h-3 mr-1" /> {t("add_item")}
                                       </Button>
                                     </div>
                                   )}
@@ -2226,19 +2348,10 @@ export function EditorPanel() {
                                       <Label className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
                                         {tiedParam.label}
                                       </Label>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <HelpCircle className="w-3.5 h-3.5 cursor-help text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors" />
-                                        </TooltipTrigger>
-                                        <TooltipContent
-                                          side="right"
-                                          className="max-w-65"
-                                        >
-                                          <p className="text-sm">
-                                            {tiedParam.description}
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
+                                      <HelpTooltip
+                                        label={tiedParam.description}
+                                        example={tiedParam.example}
+                                      />
                                     </div>
 
                                     {tiedParam.type === "string" && (
@@ -2271,7 +2384,7 @@ export function EditorPanel() {
                                                     e.target.value,
                                                   )
                                                 }
-                                                placeholder="Значение..."
+                                                placeholder={t("value_placeholder")}
                                                 className="h-8 text-sm font-mono flex-1"
                                               />
                                               <Button
@@ -2292,7 +2405,7 @@ export function EditorPanel() {
                                         )}
                                         {tiedArrayValue.length === 0 && (
                                           <p className="text-[10px] text-zinc-400 italic">
-                                            Список пуст
+                                            {t("list_empty")}
                                           </p>
                                         )}
                                         <Button
@@ -2303,8 +2416,7 @@ export function EditorPanel() {
                                             handleAddArrayItem(tiedParam!.key)
                                           }
                                         >
-                                          <Plus className="w-3 h-3 mr-1" />{" "}
-                                          Добавить элемент
+                                          <Plus className="w-3 h-3 mr-1" /> {t("add_item")}
                                         </Button>
                                       </div>
                                     )}
@@ -2317,11 +2429,10 @@ export function EditorPanel() {
                             </AccordionContent>
                           </AccordionItem>
                         ))}
-                      </Accordion>
-                    )}
-                  </div>
-                )}
-              </TooltipProvider>
+                    </Accordion>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
           

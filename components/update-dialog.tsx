@@ -18,6 +18,7 @@ export interface UpdateInfo {
   title: string;
   notes: string;
   url: string;
+  installerUrl?: string;
 }
 
 interface UpdateDialogProps {

@@ -77,11 +77,21 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
     cancel: "Отмена",
     delete_project_confirm: "Удалить проект",
     add_parameter: "Добавить параметр",
+    add_selected_parameters: "Добавить выбранные",
     add_parameter_title: "Добавление параметра",
     add_parameter_desc:
       "Выберите параметр для добавления в класс. Можно фильтровать по категориям или использовать поиск.",
+    selected_parameter_count: ({ count }) => `Выбрано: ${count}`,
     categories: "Категории",
     all_parameters: "Все параметры",
+    class_section_title: "Классы",
+    class_section_desc: "Каждая вкладка — отдельный класс конфигурации.",
+    class_parameters_title: "Параметры класса",
+    category_group_core: "Основа предмета",
+    category_group_storage: "Инвентарь и содержимое",
+    category_group_apparel: "Одежда и защита",
+    category_group_combat: "Бой и звук",
+    category_group_systems: "Питание и спецсистемы",
     parameter_search_placeholder: "Поиск параметра по имени или описанию...",
     parameter_count: ({ count }) => `Параметров: ${count}`,
     male_and_female_models: "Male & Female Models",
@@ -225,11 +235,21 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
     cancel: "Cancel",
     delete_project_confirm: "Delete project",
     add_parameter: "Add parameter",
+    add_selected_parameters: "Add selected",
     add_parameter_title: "Add parameter",
     add_parameter_desc:
       "Choose a parameter to add to the class. You can filter by category or use search.",
+    selected_parameter_count: ({ count }) => `Selected: ${count}`,
     categories: "Categories",
     all_parameters: "All parameters",
+    class_section_title: "Classes",
+    class_section_desc: "Each tab represents a separate config class.",
+    class_parameters_title: "Class parameters",
+    category_group_core: "Core item",
+    category_group_storage: "Inventory and storage",
+    category_group_apparel: "Clothing and protection",
+    category_group_combat: "Combat and sound",
+    category_group_systems: "Systems and utilities",
     parameter_search_placeholder:
       "Search by parameter name or description...",
     parameter_count: ({ count }) => `Parameters: ${count}`,
@@ -310,12 +330,13 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
 
 const categoryTitleEn: Record<string, string> = {
   base: "Core item settings",
-  visuals: "Model and appearance",
+  visual: "Model and materials",
   inventory: "Inventory slots",
   repair: "Condition and repair",
   quantity: "Stacks, quantity, and units",
   weapons: "Weapons and combat",
   damageSystem: "Damage system",
+  sound: "Sound behavior",
   animEvents: "Sound events",
   containers: "Containers and cargo",
   energy: "Energy and electronics",
@@ -327,12 +348,13 @@ const categoryTitleEn: Record<string, string> = {
 
 const categoryDescriptionEn: Record<string, string> = {
   base: "Main identifiers, model path, physics, and core item settings.",
-  visuals: "Visual setup, selections, textures, and materials.",
+  visual: "Model paths, hidden selections, textures, and material settings.",
   inventory: "Where the item can be equipped and what attachments it accepts.",
   repair: "Whether the item can be repaired, with what kits, and how durable it is.",
   quantity: "Initial amount, stack behavior, units, and quantity weight.",
   weapons: "Magazine support, chamber setup, recoil, and combat modifiers.",
   damageSystem: "Health, armor, and incoming damage modifiers.",
+  sound: "Surface sound type, impact behavior, and sound-related properties.",
   animEvents: "Pickup and drop sound events for the item.",
   containers: "Cargo size, openable behavior, and container-specific rules.",
   energy: "EnergyManager properties for powered and electronic items.",
@@ -431,10 +453,20 @@ const uiTextMapEn: Record<string, string> = {
 const originalCatalogSnapshot = JSON.parse(JSON.stringify(CATALOG)) as CategoryDef[];
 
 export function readStoredLocale(): Locale {
-  if (typeof window === "undefined") return "ru";
+  if (typeof window === "undefined") return "en";
+
+  const desktopLocale = (
+    window as Window & {
+      electronAPI?: { getStoredLocale?: () => string };
+    }
+  ).electronAPI?.getStoredLocale?.();
+
+  if (desktopLocale === "en" || desktopLocale === "ru") {
+    return desktopLocale;
+  }
 
   const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  return stored === "en" ? "en" : "ru";
+  return stored === "ru" ? "ru" : "en";
 }
 
 export function formatMessage(

@@ -1,13 +1,19 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
 import { Header } from "@/components/header";
 import { EditorPanel } from "@/components/editor-panel";
 import { PreviewPanel } from "@/components/preview-panel";
 import { UpdateDialog } from "@/components/update-dialog";
 import { LocaleProvider } from "@/components/locale-provider";
 import { useDesktopAppEvents } from "@/hooks/use-desktop-app-events";
+import {
+  installOrOpenDesktopUpdate,
+  isDesktopRuntime,
+  openExternalUrl,
+} from "@/lib/desktop";
 import { useAppStore } from "@/lib/store";
-import { BrowserOpenURL } from "@/frontend/wailsjs/runtime/runtime";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,14 +21,33 @@ import {
 } from "@/components/ui/resizable";
 
 export default function Home() {
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const importConfigFromCpp = useAppStore((s) => s.importConfigFromCpp);
   const { updateInfo, clearUpdateInfo } = useDesktopAppEvents(importConfigFromCpp);
 
   const handleUpdate = () => {
-    if (!updateInfo?.url) return;
-    BrowserOpenURL(updateInfo.url);
+    if (!updateInfo) {
+      return;
+    }
+
+    if (isDesktopRuntime()) {
+      void installOrOpenDesktopUpdate(updateInfo);
+    } else if (updateInfo.url) {
+      void openExternalUrl(updateInfo.url);
+    }
+
     clearUpdateInfo();
   };
+
+  if (!isMounted) {
+    return (
+      <main className="flex h-screen w-screen items-center justify-center bg-zinc-50 font-inter antialiased text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50" />
+    );
+  }
 
   return (
     <LocaleProvider>

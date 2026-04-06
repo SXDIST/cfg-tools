@@ -1,303 +1,408 @@
 # cfg-tools
 
-cfg-tools - это десктопная утилита для моддинга DayZ, которая помогает создавать, редактировать, импортировать и экспортировать `config.cpp` через удобный визуальный интерфейс.
+> Desktop tooling for building, editing, importing, and exporting DayZ `config.cpp` files through a visual workflow.
 
-Программа ориентирована на быстрый рабочий цикл:
+[![Desktop Release](https://img.shields.io/github/actions/workflow/status/SXDIST/cfg-tools/release.yml?label=release&logo=github)](https://github.com/SXDIST/cfg-tools/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/SXDIST/cfg-tools?display_name=tag&logo=github)](https://github.com/SXDIST/cfg-tools/releases/latest)
+[![Windows](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows)](https://github.com/SXDIST/cfg-tools/releases/latest)
+[![Linux](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/SXDIST/cfg-tools/releases/latest)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 
-1. Создать проект или импортировать существующий `config.cpp`.
-2. Настроить классы, параметры, слоты и прокси в форме.
-3. Получить готовый C++-конфиг в превью.
-4. Экспортировать один или несколько конфигов.
+`cfg-tools` is an Electron-based desktop app with a Next.js frontend. It is designed for DayZ modding workflows where editing raw config files by hand becomes slow, repetitive, and error-prone.
 
----
+Instead of manually maintaining nested config structures, you work with projects, classes, parameters, slots, proxies, and variants in the UI, while the app generates the final `config.cpp` for you.
 
-## Для чего нужна программа
+## Quick Start
 
-cfg-tools решает типичные проблемы ручного редактирования DayZ-конфигов:
+### Download a release
 
-1. Ускоряет создание однотипных конфигураций экипировки, предметов и их вариаций.
-2. Уменьшает количество синтаксических ошибок в `config.cpp`.
-3. Упрощает работу с вложенными секциями (`DamageSystem`, `AnimEvents`, и т.д.).
-4. Позволяет хранить несколько проектов и экспортировать их пакетно.
-5. Позволяет импортировать уже существующий конфиг и продолжить редактирование в UI.
+Get the latest desktop build from GitHub Releases:
 
----
+- Windows: portable `.exe` or installer `.exe`
+- Linux: `.tar.gz`
 
-## На чем написана программа
+Release page:
 
-### Ядро и Desktop shell
+- <https://github.com/SXDIST/cfg-tools/releases/latest>
 
-1. Go 1.25 (`go.mod`)
-2. Wails v2 (`github.com/wailsapp/wails/v2`)
-3. Desktop bootstrap и биндинг backend методов находятся в `main.go` и `app.go`.
+### Run locally in development
+
+```bash
+npm install
+npm run dev:desktop
+```
+
+### Build locally
+
+```bash
+npm run build:desktop:win
+# or
+npm run build:desktop:linux
+```
+
+## At a Glance
+
+- Built for DayZ modders who want faster config iteration
+- Visual editor for classes, parameters, slots, proxies, and variants
+- Live `config.cpp` preview in Monaco Editor
+- Existing config import flow for continuing work instead of starting over
+- Desktop release notifications powered by GitHub Releases
+- Multi-platform release pipeline for Windows and Linux
+
+## Why This Exists
+
+Hand-editing DayZ configs usually breaks down in the same places:
+
+- repetitive item setup across multiple classes
+- nested structures like `DamageSystem`, `AnimEvents`, and container blocks
+- syntax mistakes in braces, semicolons, arrays, and inherited classes
+- poor reuse when creating slots, proxies, and class variants
+- difficulty importing an existing config and continuing work safely
+
+`cfg-tools` addresses that by turning the config into structured application state and generating the final C++ output from that state.
+
+## What You Can Do
+
+- Create and manage multiple projects locally
+- Add, duplicate, reorder, and delete config classes
+- Configure item parameters through categorized forms
+- Edit `CfgSlots` and `CfgNonAIVehicles` visually
+- Build child classes / retextures from the UI
+- Preview the generated `config.cpp` live in Monaco Editor
+- Export the current config as `.cpp`
+- Export all projects as a `.zip`
+- Import an existing `config.cpp`
+- Import `.cpp` files via drag-and-drop in the desktop runtime
+- Receive desktop update notifications when a newer GitHub release is available
+
+## Feature Overview
+
+| Area | What it does |
+|---|---|
+| Project management | Create, duplicate, rename, and remove multiple DayZ config projects |
+| Class editor | Add, reorder, and edit config classes through a visual workflow |
+| Parameter system | Configure class parameters from categorized forms instead of hand-editing raw C++ |
+| Config generation | Generate a structured `config.cpp` from application state |
+| Import pipeline | Import an existing `config.cpp` and continue editing it in the UI |
+| Slots and proxies | Edit `CfgSlots` and `CfgNonAIVehicles` without manually building nested sections |
+| Variants / retextures | Create child classes and visual variants directly from the editor |
+| Live preview | Inspect the generated output in Monaco before export |
+| Export | Export the current config or package multiple projects into a ZIP |
+| Desktop runtime | Use drag-and-drop import, release notifications, and update handoff from the desktop app |
+
+## Who It Is For
+
+`cfg-tools` is aimed at people who already know what a DayZ config needs to contain, but do not want to spend their time fighting raw file structure.
+
+It fits best when you need to:
+
+- iterate quickly on item configs
+- manage multiple related classes in one place
+- reduce syntax mistakes in generated output
+- import an existing config and keep editing it visually
+- ship repeatable desktop tooling to a modding workflow
+
+## Product Flow
+
+```text
+Create or import project
+        ↓
+Edit classes, parameters, slots, proxies, variants
+        ↓
+Preview generated config.cpp
+        ↓
+Export one config or package multiple projects
+```
+
+## Stack
+
+### Desktop shell
+
+- Electron
+- Preload bridge for safe renderer ↔ desktop communication
+- `electron-builder` for release packaging
 
 ### Frontend
 
-1. Next.js 16 (App Router)
-2. React 19 + TypeScript
-3. Zustand для состояния и персистентности
-4. Tailwind CSS 4 + Radix UI/shadcn компоненты
-5. Monaco Editor для live preview
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Zustand for app state, history, and persistence
+- Tailwind CSS 4
+- shadcn/ui-style component layer
+- Monaco Editor for config preview
 
-### Библиотеки и утилиты
+### Supporting libraries
 
-1. `jszip` + `file-saver` для экспорта архивов и файлов
-2. `uuid` для генерации внутренних ID
-3. `zod` / `react-hook-form` / `@hookform/resolvers` в инфраструктуре форм
+- `jszip` and `file-saver` for exports
+- `uuid` for internal IDs
+- `react-hook-form`, `zod`, and related tooling in form infrastructure
 
----
+## Architecture
 
-## Как устроена архитектура
+The app is intentionally split into a few clear responsibilities:
 
-1. Frontend хранит все проекты в Zustand store (`lib/store.ts`).
-2. Генератор (`lib/generator.ts`) превращает текущее состояние в C++ текст `config.cpp`.
-3. Импортер (`lib/cpp-importer.ts`) парсит `config.cpp` и создаёт новый проект в сторе.
-4. Wails связывает frontend и Go backend.
-5. Go-метод `ReadTextFile` используется для drag-and-drop импорта файлов в desktop-режиме.
-6. Состояние проектов сохраняется через persist middleware (localStorage).
+- [`lib/store.ts`](/home/targaryen/repos/cfg-tools/lib/store.ts)  
+  Central Zustand store for projects, classes, slots, proxies, undo/redo, and persistence.
 
----
+- [`lib/generator.ts`](/home/targaryen/repos/cfg-tools/lib/generator.ts)  
+  Converts the current app state into a DayZ `config.cpp`.
 
-## Какие фреймворки и сборщики используются
+- [`lib/cpp-importer.ts`](/home/targaryen/repos/cfg-tools/lib/cpp-importer.ts)  
+  Parses imported config text and reconstructs editable state.
 
-1. Frontend framework: Next.js.
-2. UI framework/patterns: React + Radix/shadcn + Tailwind.
-3. Frontend build: `next build`.
-4. Frontend dev server: `next dev`.
-5. Desktop framework: Wails v2.
-6. Desktop build/packaging: `wails build`.
-7. Wails конфигурация сборки frontend лежит в `wails.json`:
-8. `frontend:install` -> `npm install`
-9. `frontend:build` -> `npm run build`
-10. `frontend:dev:watcher` -> `npm run dev`
+- [`lib/catalog.ts`](/home/targaryen/repos/cfg-tools/lib/catalog.ts)  
+  Parameter catalog that drives the editor UI.
 
----
+- [`electron/main.cjs`](/home/targaryen/repos/cfg-tools/electron/main.cjs)  
+  Electron main process, release checks, update handoff, and desktop IPC.
 
-## Основные возможности
+- [`electron/preload.cjs`](/home/targaryen/repos/cfg-tools/electron/preload.cjs)  
+  Safe preload bridge exposed to the renderer.
 
-1. Управление несколькими проектами (`Новый`, `Дублировать`, `Удалить`).
-2. Редактирование классов через вкладки.
-3. Перестановка табов классов drag-and-drop.
-4. Настройка базовых параметров, урона, материалов, анимационных событий и пр.
-5. Работа с `CfgSlots` и `CfgNonAIVehicles`.
-6. Live preview итогового C++ конфига.
-7. Экспорт текущего конфига в `.cpp`.
-8. Экспорт всех проектов в `.zip`.
-9. Импорт `config.cpp` из меню.
-10. Импорт `config.cpp` через drag-and-drop (Wails runtime).
+- [`lib/desktop.ts`](/home/targaryen/repos/cfg-tools/lib/desktop.ts)  
+  Renderer-side wrapper around desktop-only capabilities.
 
----
+## Import Model
 
-## Ограничения импорта
+The importer is designed first for configs that are compatible with the app's own generator, but it also attempts to recover from a range of common issues:
 
-Импорт в первую очередь ориентирован на структуру, совместимую с генератором cfg-tools, но теперь также пытается автоматически исправлять типовые проблемы во входном `config.cpp`: пропущенные `;`, часть ошибок в именах параметров, отсутствующие закрывающие скобки и некоторые сломанные объявления `class`.
+- missing semicolons
+- some malformed class declarations
+- some broken parameter naming
+- some missing closing braces
 
-Поддерживаемый каркас:
+### Expected structure
 
-1. `CfgPatches`
-2. `CfgVehicles`
-3. Опционально `CfgSlots`
-4. Опционально `CfgNonAIVehicles`
+- `CfgPatches`
+- `CfgVehicles`
+- optional `CfgSlots`
+- optional `CfgNonAIVehicles`
 
-Что важно понимать:
+### Important limitations
 
-1. Экзотические и сильно кастомные структуры могут не импортироваться.
-2. При несовместимом синтаксисе импорт завершится с ошибкой.
-3. При успешном импорте создаётся новый проект с новыми внутренними ID.
+- highly custom or exotic configs may not import cleanly
+- unsupported syntax can still fail hard
+- successful imports always create a new internal project with fresh IDs
 
----
+## Desktop Runtime Features
 
-## Требования для сборки из исходников
+Some features only exist when the app runs inside Electron:
 
-1. Windows (основной целевой сценарий проекта)
-2. Node.js 20+ и npm
-3. Go 1.25+
-4. Wails CLI v2
+- drag-and-drop `.cpp` import from the OS
+- GitHub release update checks
+- release handoff for updating the app
 
-Проверка окружения:
+### Update behavior
+
+When a newer GitHub release is detected, the desktop app shows an update dialog.
+
+- Installed Windows build: downloads and launches the latest installer when possible
+- Portable Windows build: opens the latest GitHub release / asset page
+- Linux build: opens the latest GitHub release / asset page
+
+## Persistence
+
+Projects are stored locally through Zustand persistence.
+
+- data is user-local
+- clearing local storage removes saved projects
+- desktop preferences such as locale are stored separately in the Electron user data directory
+
+## Development
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+Check your environment:
 
 ```bash
 node -v
 npm -v
-go version
-wails version
 ```
 
-Установка Wails CLI (если не установлен):
-
-```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
-```
-
----
-
-## Запуск проекта в разработке
-
-### Вариант 1. Frontend-only (быстро проверить UI)
+### Install dependencies
 
 ```bash
 npm install
+```
+
+### Run the web UI only
+
+Useful for frontend work when desktop APIs are not needed.
+
+```bash
 npm run dev
 ```
 
-Откройте:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-### Вариант 2. Desktop dev через Wails (рекомендуется)
+### Run the full desktop app in development
+
+Recommended for normal feature work.
 
 ```bash
-npm install
-wails dev
+npm run dev:desktop
 ```
 
-Что это даёт:
+This gives you:
 
-1. Запуск desktop-окна приложения.
-2. Доступ к runtime-функциям Wails.
-3. Проверка drag-and-drop импорта через Go bridge.
+- the Electron window
+- preload bridge access
+- drag-and-drop import behavior
+- desktop update/runtime integration
 
----
+## Build Commands
 
-## Сборка приложения из исходников
-
-### Production desktop build
-
-```bash
-npm install
-wails build
-```
-
-Результат сборки обычно находится в директории `build/bin`.
-
-### Отдельная сборка frontend (если нужна)
+### Web build
 
 ```bash
 npm run build
-npm run start
 ```
 
----
+### Desktop build
 
-## Как пользоваться программой
+Build using the default Electron Builder config:
 
-### 1. Создание и выбор проекта
+```bash
+npm run build:desktop
+```
 
-1. Откройте меню `Проект` в верхней панели.
-2. Выберите `Новый проект`.
-3. При необходимости переключайтесь между открытыми проектами там же.
+### Platform-specific desktop builds
 
-### 2. Работа с классами
+#### Windows
 
-1. В блоке `Классы` каждая вкладка - отдельный класс.
-2. Нажмите `+`, чтобы добавить класс.
-3. Изменяйте имя класса и базовый класс.
-4. Перетаскивайте вкладки мышью, чтобы менять порядок классов.
+Builds:
 
-### 3. Редактирование параметров
+- portable `.exe`
+- installer `.exe` via NSIS
 
-1. Включайте нужные параметры чекбоксами.
-2. Заполняйте поля значений по категориям.
-3. Для `Inventory Slot` поддерживается выбор нескольких значений.
+Command:
 
-### 4. Работа с CfgSlots и CfgNonAIVehicles
+```bash
+npm run build:desktop:win
+```
 
-1. Добавляйте/редактируйте слоты в секции `Слоты (CfgSlots)`.
-2. Добавляйте/редактируйте прокси в секции `Прокси объекты (CfgNonAIVehicles)`.
+#### Linux
 
-### 5. Превью и экспорт
+Builds:
 
-1. Правая панель показывает live preview итогового `config.cpp`.
-2. В меню `Экспорт` можно скачать:
-3. `Текущий конфиг (.cpp)`
-4. `Все конфиги (.zip)`
+- `.tar.gz`
 
-### 6. Импорт существующего config.cpp
+Command:
 
-Варианты импорта:
+```bash
+npm run build:desktop:linux
+```
 
-1. `Проект -> Импортировать config.cpp`
-2. Drag-and-drop `.cpp` файла в окно приложения (desktop runtime)
+### Build output
 
-Поведение:
+Desktop artifacts are written to:
 
-1. Создаётся новый проект.
-2. Активным становится импортированный проект.
-3. При ошибке выводится сообщение с причиной.
+```text
+dist-electron/
+```
 
----
+## GitHub Releases
 
-## Хранение данных
+The repository includes a release workflow that builds and publishes both Windows and Linux desktop artifacts.
 
-1. Проекты хранятся локально через Zustand persist.
-2. Данные привязаны к локальному окружению пользователя.
-3. При очистке localStorage сохранённые проекты будут удалены.
+### Current release matrix
 
----
+- Windows: portable + installer
+- Linux: `tar.gz`
 
-## Структура проекта (кратко)
+Workflow file:
 
-1. `app` - страницы Next.js и корневая композиция UI.
-2. `components` - UI-компоненты редактора, хедера, превью и т.д.
-3. `components/ui` - базовые переиспользуемые UI-элементы.
-4. `lib/catalog.ts` - каталог параметров для формы.
-5. `lib/store.ts` - глобальное состояние, действия, persist.
-6. `lib/generator.ts` - генерация `config.cpp`.
-7. `lib/cpp-importer.ts` - парсер/импорт `config.cpp`.
-8. `main.go`, `app.go` - Wails backend и bridge методы.
-9. `wails.json` - конфигурация Wails и frontend hooks.
+- [`.github/workflows/release.yml`](/home/targaryen/repos/cfg-tools/.github/workflows/release.yml)
 
----
+### Distributed artifacts
+
+- Windows portable `.exe`
+- Windows installer `.exe`
+- Linux `.tar.gz`
+
+## Project Structure
+
+```text
+app/                    Next.js app entry and layout
+components/             Feature-level UI
+components/ui/          Reusable UI primitives
+electron/               Electron main process and preload bridge
+hooks/                  Desktop/runtime hooks
+lib/catalog.ts          Parameter catalog for the editor
+lib/store.ts            Zustand app state and persistence
+lib/generator.ts        config.cpp generation
+lib/cpp-importer.ts     config.cpp import/parsing
+lib/desktop.ts          Renderer bridge for Electron-only features
+```
 
 ## Troubleshooting
 
-### `wails` не найден
+### Import failed
 
-1. Убедитесь, что Wails CLI установлен.
-2. Проверьте, что `%GOPATH%/bin` или `%USERPROFILE%/go/bin` добавлен в PATH.
+Check:
 
-### Ошибка импорта `config.cpp`
+- that the file contains `CfgPatches` and `CfgVehicles`
+- that braces and semicolons are not severely broken
+- that the config is not relying on unsupported custom structure
 
-1. Проверьте наличие `CfgPatches` и `CfgVehicles`.
-2. Проверьте синтаксис и закрытие скобок/точек с запятой.
-3. Учитывайте, что импорт строгий и не покрывает все произвольные конфиги DayZ.
+### Drag-and-drop import does not work
 
-### Не работает drag-and-drop импорт
+Make sure you are running the desktop app, not only the web dev server.
 
-1. Проверяйте в desktop-режиме Wails.
-2. В web-only режиме `npm run dev` runtime bridge недоступен.
+- works in Electron runtime
+- does not work in plain `npm run dev`
 
-### Проблемы со сборкой frontend
+### Frontend build issues
 
-1. Удалите `node_modules` и переустановите зависимости:
+Try a clean reinstall:
 
 ```bash
 rm -rf node_modules
 npm install
+npm run build
 ```
 
-2. Повторите `npm run build`.
+### Desktop packaging issues
 
----
+Use the platform-native build when possible.
 
-## Вклад в проект
+- Windows artifacts are best built on Windows
+- Linux artifacts are best built on Linux
 
-1. Создайте ветку под задачу.
-2. Внесите изменения.
-3. Проверьте сборку и линтер:
+This matters especially for release pipelines and installer generation.
+
+## Contribution Workflow
+
+1. Create a branch for your work.
+2. Make the required changes.
+3. Validate locally:
 
 ```bash
 npm run lint
 npm run build
-wails build
 ```
 
-4. Оформите PR с описанием изменений.
+4. If you touched desktop packaging, also verify the relevant desktop build command:
 
----
+```bash
+npm run build:desktop:win
+# or
+npm run build:desktop:linux
+```
 
-## Лицензия
+5. Open a pull request with a clear description of the change.
 
-В репозитории на момент написания не добавлен отдельный файл лицензии. Если вы планируете публичное распространение, рекомендуется добавить `LICENSE` с выбранной моделью лицензирования.
+## License
+
+There is currently no dedicated `LICENSE` file in the repository.
+
+If this project is intended for public distribution, add an explicit license before publishing or accepting external contributions.

@@ -2,20 +2,21 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useSyncExternalStore,
+  useState,
   type ReactNode,
 } from "react";
 
+import { setDesktopStoredLocale } from "@/lib/desktop";
 import {
   applyCatalogLocale,
   type Locale,
   formatMessage,
   LOCALE_STORAGE_KEY,
   readStoredLocale,
-  translateUiText,
 } from "@/lib/i18n";
 
 interface LocaleContextValue {
@@ -30,90 +31,46 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 const LOCALE_CHANGE_EVENT = "cfg-tools-locale-change";
 
-function subscribeToLocaleStore(onStoreChange: () => void) {
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key && event.key !== LOCALE_STORAGE_KEY) return;
-    onStoreChange();
-  };
-
-  const handleLocaleChange = () => {
-    onStoreChange();
-  };
-
-  window.addEventListener("storage", handleStorage);
-  window.addEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
-
-  return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
-  };
-}
-
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const locale = useSyncExternalStore<Locale>(
-    subscribeToLocaleStore,
-    readStoredLocale,
-    () => "ru",
-  );
+  const [locale, setLocaleState] = useState<Locale>(() => readStoredLocale());
 
-  const setLocale = (nextLocale: Locale) => {
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
-    window.dispatchEvent(new Event(LOCALE_CHANGE_EVENT));
-  };
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== LOCALE_STORAGE_KEY) return;
+      setLocaleState(readStoredLocale());
+    };
+
+    const handleLocaleChange = () => {
+      setLocaleState(readStoredLocale());
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
+    };
+  }, []);
+
+  const setLocale = useCallback((nextLocale: Locale) => {
+    setLocaleState((currentLocale) => {
+      if (nextLocale === currentLocale) {
+        return currentLocale;
+      }
+
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+      window.dispatchEvent(new Event(LOCALE_CHANGE_EVENT));
+      void setDesktopStoredLocale(nextLocale);
+      return nextLocale;
+    });
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    void setDesktopStoredLocale(locale);
     document.documentElement.lang = locale;
     applyCatalogLocale(locale);
-  }, [locale]);
-
-  useEffect(() => {
-    if (locale === "ru") return;
-
-    const translateNode = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent?.trim();
-        if (!text) return;
-        const translated = translateUiText(locale, text);
-        if (translated !== text && node.textContent) {
-          node.textContent = node.textContent.replace(text, translated);
-        }
-        return;
-      }
-
-      if (!(node instanceof HTMLElement)) return;
-
-      ["placeholder", "title", "aria-label"].forEach((attribute) => {
-        const current = node.getAttribute(attribute);
-        if (!current) return;
-        const translated = translateUiText(locale, current);
-        if (translated !== current) {
-          node.setAttribute(attribute, translated);
-        }
-      });
-
-      node.childNodes.forEach(translateNode);
-    };
-
-    const runTranslation = () => {
-      translateNode(document.body);
-    };
-
-    runTranslation();
-
-    const observer = new MutationObserver(() => {
-      runTranslation();
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["placeholder", "title", "aria-label"],
-    });
-
-    return () => observer.disconnect();
   }, [locale]);
 
   const value = useMemo<LocaleContextValue>(
@@ -122,7 +79,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       setLocale,
       t: (key, params) => formatMessage(locale, key, params),
     }),
-    [locale],
+    [locale, setLocale],
   );
 
   return (
