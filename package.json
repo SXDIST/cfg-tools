@@ -1,6 +1,6 @@
 {
   "name": "cfg-tools",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Desktop DayZ config generator",
   "author": "SXDIST",
@@ -14,10 +14,14 @@
     "start:web": "next start",
     "build": "next build",
     "build:web": "next build",
-    "build:desktop": "npm run build:web && electron-builder",
-    "build:desktop:linux": "npm run build:web && electron-builder --linux tar.gz",
-    "build:desktop:win": "npm run build:web && electron-builder --win portable nsis",
-    "lint": "eslint"
+    "build:desktop": "npm run build:web && electron-builder --publish never",
+    "build:desktop:linux": "npm run build:web && electron-builder --linux tar.gz --publish never",
+    "build:desktop:win": "npm run build:web && electron-builder --win portable nsis --publish never",
+    "lint": "eslint",
+    "release": "node scripts/release.mjs",
+    "release:patch": "node scripts/release.mjs patch",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
