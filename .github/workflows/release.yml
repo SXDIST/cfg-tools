@@ -2,6 +2,8 @@ name: Desktop Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -112,35 +114,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Compute release metadata
         id: release_meta
         shell: bash
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG_NAME="${GITHUB_REF#refs/tags/}"
-            RELEASE_NAME="cfg-tools ${TAG_NAME}"
           else
-            echo "release workflow must run from a version tag" >&2
-            exit 1
+            VERSION="$(node -p "require('./package.json').version")"
+            TAG_NAME="v${VERSION}"
           fi
 
+          RELEASE_NAME="cfg-tools ${TAG_NAME}"
+          TAG_SHA="$(git ls-remote origin "refs/tags/${TAG_NAME}" | awk '{print $1}')"
+
+          if [[ -n "${TAG_SHA}" && "${TAG_SHA}" != "${GITHUB_SHA}" ]]; then
+            echo "::notice::Release tag ${TAG_NAME} already exists on ${TAG_SHA}; skipping release for ${GITHUB_SHA}."
+            echo "skip_release=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [[ -z "${TAG_SHA}" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag "${TAG_NAME}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${TAG_NAME}"
+          fi
+
+          echo "skip_release=false" >> "${GITHUB_OUTPUT}"
           echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
           echo "release_name=${RELEASE_NAME}" >> "${GITHUB_OUTPUT}"
           echo "prerelease=false" >> "${GITHUB_OUTPUT}"
 
       - name: Download Windows artifacts
+        if: steps.release_meta.outputs.skip_release != 'true'
         uses: actions/download-artifact@v4
         with:
           name: desktop-build-windows
           path: release-assets/windows
 
       - name: Download Linux artifacts
+        if: steps.release_meta.outputs.skip_release != 'true'
         uses: actions/download-artifact@v4
         with:
           name: desktop-build-linux
           path: release-assets/linux
 
       - name: Publish GitHub release
+        if: steps.release_meta.outputs.skip_release != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_meta.outputs.tag_name }}
