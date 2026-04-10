@@ -13,7 +13,7 @@
   "info": {
     "companyName": "SXDIST",
     "productName": "cfg-tools",
-    "productVersion": "2.1.0",
+    "productVersion": "2.1.1",
     "copyright": "Copyright 2026 SXDIST",
     "comments": "Desktop DayZ config generator built with Wails"
   }
