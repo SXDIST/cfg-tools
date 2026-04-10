@@ -25,7 +25,7 @@ function formatValue(val: any, type: string): string {
     if (type === 'number') return `${val}`;
     if (type === 'boolean') return `${toBooleanNumber(val)}`;
     if (type === 'array_of_strings') {
-        if (!Array.isArray(val)) return '{" "}';
+        if (!Array.isArray(val)) return val ? `{"${val}"}` : '{}';
         return `{${val.map(v => `"${v}"`).join(', ')}}`;
     }
     if (type === 'array_of_numbers') {
@@ -139,8 +139,8 @@ export function generateCpp(config: ConfigData): string {
                     if (param.type === 'combobox' && Array.isArray(val)) {
                         val = val[0] ?? '';
                     }
-                    let isArrayProp = param.type.startsWith('array') || param.type === 'multi-select';
-                    let formattedValue = formatValue(val, param.type);
+                    const isArrayProp = param.type.startsWith('array') || param.type === 'multi-select';
+                    const formattedValue = formatValue(val, param.type);
 
                     const formatted = `${param.key}${isArrayProp ? '[]' : ''} = ${formattedValue};`;
 

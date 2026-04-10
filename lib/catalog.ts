@@ -674,8 +674,8 @@ export const CATALOG: CategoryDef[] = [
                 key: 'headSelectionsToHide',
                 label: 'Hide Head Selections',
                 description: 'Часть головы, которая будет скрыта при надевании предмета (для предотвращения "клиппинга").',
-                type: 'combobox',
-                defaultValue: '',
+                type: 'array_of_strings',
+                defaultValue: [],
                 placement: 'root',
                 allowCustom: true,
                 selectOptions: [

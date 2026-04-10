@@ -1778,6 +1778,11 @@ export function EditorPanel() {
 
                             const value =
                               activeTab.values[param.key] ?? param.defaultValue;
+                            const arrayValue = Array.isArray(value)
+                              ? value
+                              : value !== undefined && value !== null && value !== ""
+                                ? [value]
+                                : [];
 
                             // Tied params (male/female, proxyModelName/proxyInventorySlot)
                             let tiedParam: typeof param | null = null;
@@ -2142,7 +2147,7 @@ export function EditorPanel() {
                                   param.selectOptions &&
                                   param.selectOptions.length > 0 && (
                                     <div className="flex flex-col gap-2">
-                                      {(value || []).map(
+                                      {arrayValue.map(
                                         (item: string, idx: number) => (
                                           <div
                                             key={idx}
@@ -2182,7 +2187,7 @@ export function EditorPanel() {
                                           </div>
                                         ),
                                       )}
-                                      {(!value || value.length === 0) && (
+                                      {arrayValue.length === 0 && (
                                         <p className="text-[10px] text-zinc-400 italic">
                                           {t("list_empty")}
                                         </p>
@@ -2204,7 +2209,7 @@ export function EditorPanel() {
                                   (!param.selectOptions ||
                                     param.selectOptions.length === 0) && (
                                     <div className="flex flex-col gap-2">
-                                      {(value || []).map(
+                                      {arrayValue.map(
                                         (item: string, idx: number) => (
                                           <div
                                             key={idx}
@@ -2238,7 +2243,7 @@ export function EditorPanel() {
                                           </div>
                                         ),
                                       )}
-                                      {(!value || value.length === 0) && (
+                                      {arrayValue.length === 0 && (
                                         <p className="text-[10px] text-zinc-400 italic">
                                           {t("list_empty")}
                                         </p>
@@ -2260,7 +2265,7 @@ export function EditorPanel() {
                                   param.selectOptions &&
                                   param.selectOptions.length > 0 && (
                                     <div className="flex flex-col gap-2">
-                                      {(value || []).map(
+                                      {arrayValue.map(
                                         (item: number, idx: number) => (
                                           <div
                                             key={idx}
@@ -2304,7 +2309,7 @@ export function EditorPanel() {
                                           </div>
                                         ),
                                       )}
-                                      {(!value || value.length === 0) && (
+                                      {arrayValue.length === 0 && (
                                         <p className="text-[10px] text-zinc-400 italic">
                                           {t("list_empty")}
                                         </p>
