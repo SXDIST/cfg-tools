@@ -7,9 +7,9 @@
 [![Windows](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows)](https://github.com/SXDIST/cfg-tools/releases/latest)
 [![Linux](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/SXDIST/cfg-tools/releases/latest)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org/)
-[![Electron](https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Wails](https://img.shields.io/badge/Wails-2.11-DF0000)](https://wails.io/)
 
-`cfg-tools` is an Electron-based desktop app with a Next.js frontend. It is designed for DayZ modding workflows where editing raw config files by hand becomes slow, repetitive, and error-prone.
+`cfg-tools` is a Wails-based desktop app with a Next.js frontend. It is designed for DayZ modding workflows where editing raw config files by hand becomes slow, repetitive, and error-prone.
 
 Instead of manually maintaining nested config structures, you work with projects, classes, parameters, slots, proxies, and variants in the UI, while the app generates the final `config.cpp` for you.
 
@@ -119,9 +119,9 @@ Export one config or package multiple projects
 
 ### Desktop shell
 
-- Electron
+- Wails
 - Preload bridge for safe renderer ↔ desktop communication
-- `electron-builder` for release packaging
+- Native Wails packaging for release builds
 
 ### Frontend
 
@@ -155,11 +155,8 @@ The app is intentionally split into a few clear responsibilities:
 - [`lib/catalog.ts`](/home/targaryen/repos/cfg-tools/lib/catalog.ts)  
   Parameter catalog that drives the editor UI.
 
-- [`electron/main.cjs`](/home/targaryen/repos/cfg-tools/electron/main.cjs)  
-  Electron main process, release checks, update handoff, and desktop IPC.
-
-- [`electron/preload.cjs`](/home/targaryen/repos/cfg-tools/electron/preload.cjs)  
-  Safe preload bridge exposed to the renderer.
+- [`app.go`](/home/targaryen/repos/cfg-tools/app.go)  
+  Wails backend, release checks, update handoff, locale persistence, and desktop bindings.
 
 - [`lib/desktop.ts`](/home/targaryen/repos/cfg-tools/lib/desktop.ts)  
   Renderer-side wrapper around desktop-only capabilities.
@@ -188,7 +185,7 @@ The importer is designed first for configs that are compatible with the app's ow
 
 ## Desktop Runtime Features
 
-Some features only exist when the app runs inside Electron:
+Some features only exist when the app runs inside the desktop runtime:
 
 - drag-and-drop `.cpp` import from the OS
 - GitHub release update checks
@@ -208,7 +205,7 @@ Projects are stored locally through Zustand persistence.
 
 - data is user-local
 - clearing local storage removes saved projects
-- desktop preferences such as locale are stored separately in the Electron user data directory
+- desktop preferences such as locale are stored separately in the app config directory
 
 ## Development
 
@@ -254,8 +251,8 @@ npm run dev:desktop
 
 This gives you:
 
-- the Electron window
-- preload bridge access
+- the Wails desktop window
+- Go/Wails bridge access
 - drag-and-drop import behavior
 - desktop update/runtime integration
 
@@ -269,7 +266,7 @@ npm run build
 
 ### Desktop build
 
-Build using the default Electron Builder config:
+Build using the default Wails config:
 
 ```bash
 npm run build:desktop
@@ -307,7 +304,7 @@ npm run build:desktop:linux
 Desktop artifacts are written to:
 
 ```text
-dist-electron/
+build/bin/
 ```
 
 ## GitHub Releases
@@ -335,13 +332,14 @@ Workflow file:
 app/                    Next.js app entry and layout
 components/             Feature-level UI
 components/ui/          Reusable UI primitives
-electron/               Electron main process and preload bridge
 hooks/                  Desktop/runtime hooks
 lib/catalog.ts          Parameter catalog for the editor
 lib/store.ts            Zustand app state and persistence
 lib/generator.ts        config.cpp generation
 lib/cpp-importer.ts     config.cpp import/parsing
-lib/desktop.ts          Renderer bridge for Electron-only features
+lib/desktop.ts          Renderer bridge for Wails-only features
+app.go                  Wails backend methods and desktop integration
+main.go                 Wails application bootstrap
 ```
 
 ## Troubleshooting
@@ -358,7 +356,7 @@ Check:
 
 Make sure you are running the desktop app, not only the web dev server.
 
-- works in Electron runtime
+- works in the Wails desktop runtime
 - does not work in plain `npm run dev`
 
 ### Frontend build issues

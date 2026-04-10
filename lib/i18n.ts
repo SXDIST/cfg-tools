@@ -455,16 +455,6 @@ const originalCatalogSnapshot = JSON.parse(JSON.stringify(CATALOG)) as CategoryD
 export function readStoredLocale(): Locale {
   if (typeof window === "undefined") return "en";
 
-  const desktopLocale = (
-    window as Window & {
-      electronAPI?: { getStoredLocale?: () => string };
-    }
-  ).electronAPI?.getStoredLocale?.();
-
-  if (desktopLocale === "en" || desktopLocale === "ru") {
-    return desktopLocale;
-  }
-
   const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
   return stored === "ru" ? "ru" : "en";
 }

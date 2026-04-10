@@ -22,8 +22,9 @@
 /out/
 
 # production
-/build
-/dist-electron
+/build/bin
+/build/windows/installer/tmp
+/package.json.md5
 /release
 /*.log
 

@@ -10,7 +10,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { setDesktopStoredLocale } from "@/lib/desktop";
+import {
+  getDesktopStoredLocaleAsync,
+  setDesktopStoredLocale,
+} from "@/lib/desktop";
 import {
   applyCatalogLocale,
   type Locale,
@@ -35,6 +38,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => readStoredLocale());
 
   useEffect(() => {
+    void getDesktopStoredLocaleAsync().then((desktopLocale) => {
+      if (!desktopLocale) {
+        return;
+      }
+
+      setLocaleState(desktopLocale);
+    });
+
     const handleStorage = (event: StorageEvent) => {
       if (event.key && event.key !== LOCALE_STORAGE_KEY) return;
       setLocaleState(readStoredLocale());

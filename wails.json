@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "cfg-tools",
+  "outputfilename": "cfg-tools",
+  "frontend:dir": ".",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build:web",
+  "frontend:dev:watcher": "npm run dev:web",
+  "frontend:dev:serverUrl": "auto",
+  "assetdir": "out",
+  "build:dir": "build",
+  "wailsjsdir": "lib/wailsjs",
+  "info": {
+    "companyName": "SXDIST",
+    "productName": "cfg-tools",
+    "productVersion": "2.1.0",
+    "copyright": "Copyright 2026 SXDIST",
+    "comments": "Desktop DayZ config generator built with Wails"
+  }
+}
