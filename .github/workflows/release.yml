@@ -89,22 +89,24 @@ jobs:
           Get-ChildItem build/bin -Recurse -File | ForEach-Object { Write-Host $_.FullName }
           $binary = Get-ChildItem build/bin -Recurse -Filter *.exe -File | Where-Object { $_.Name -notmatch "installer|setup|nsis" } | Select-Object -First 1
           if (-not $binary) { throw "Portable Windows binary not found in build/bin" }
-          Compress-Archive -LiteralPath $binary.FullName -DestinationPath ("release-assets/windows/" + $binary.BaseName + "-windows-amd64.zip") -Force
+          Copy-Item -LiteralPath $binary.FullName -Destination "release-assets/windows/cfg-tools.exe" -Force
           $installer = Get-ChildItem build/bin -Recurse -File | Where-Object { $_.Name -match "installer|setup|nsis" } | Select-Object -First 1
           if (-not $installer) { throw "Windows installer not found in build/bin" }
-          Copy-Item -LiteralPath $installer.FullName -Destination release-assets/windows -Force
+          Copy-Item -LiteralPath $installer.FullName -Destination "release-assets/windows/cfg-tools-installer.exe" -Force
 
       - name: Package Linux artifacts
         if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p release-assets/linux
-          binary="$(find build/bin -maxdepth 1 -type f -name 'cfg-tools*' ! -name '*.deb' ! -name '*.rpm' ! -name '*.AppImage' ! -name '*.tar.gz' | head -n 1)"
+          echo "Files produced by Wails:"
+          find build/bin -maxdepth 2 -type f -print
+          binary="$(find build/bin -maxdepth 2 -type f -name 'cfg-tools*' ! -name '*.deb' ! -name '*.rpm' ! -name '*.AppImage' ! -name '*.tar.gz' | head -n 1)"
           if [[ -z "$binary" ]]; then
             echo "Linux binary not found in build/bin" >&2
             exit 1
           fi
-          tar -C "$(dirname "$binary")" -czf "release-assets/linux/$(basename "$binary")-linux-amd64.tar.gz" "$(basename "$binary")"
+          tar -C "$(dirname "$binary")" -czf "release-assets/linux/cfg-tools-linux.tar.gz" "$(basename "$binary")"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -142,15 +144,14 @@ jobs:
           RELEASE_NAME="cfg-tools ${TAG_NAME}"
           TAG_SHA="$(git ls-remote origin "refs/tags/${TAG_NAME}" | awk '{print $1}')"
 
-          if [[ -n "${TAG_SHA}" && "${TAG_SHA}" != "${GITHUB_SHA}" ]]; then
-            echo "::notice::Release tag ${TAG_NAME} already exists on ${TAG_SHA}; skipping release for ${GITHUB_SHA}."
-            echo "skip_release=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if [[ -z "${TAG_SHA}" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "${TAG_SHA}" && "${TAG_SHA}" != "${GITHUB_SHA}" ]]; then
+            echo "::notice::Moving ${TAG_NAME} from ${TAG_SHA} to ${GITHUB_SHA} for regenerated release assets."
+            git tag -f "${TAG_NAME}" "${GITHUB_SHA}"
+            git push --force origin "refs/tags/${TAG_NAME}"
+          elif [[ -z "${TAG_SHA}" ]]; then
             git tag "${TAG_NAME}" "${GITHUB_SHA}"
             git push origin "refs/tags/${TAG_NAME}"
           fi
@@ -181,6 +182,7 @@ jobs:
           tag_name: ${{ steps.release_meta.outputs.tag_name }}
           name: ${{ steps.release_meta.outputs.release_name }}
           generate_release_notes: true
+          overwrite_files: true
           prerelease: ${{ steps.release_meta.outputs.prerelease == 'true' }}
           files: |
             release-assets/windows/*
