@@ -45,7 +45,7 @@ npm run build:desktop:linux
 
 - Built for DayZ modders who want faster config iteration
 - Visual editor for classes, parameters, slots, proxies, and variants
-- Live `config.cpp` preview in Monaco Editor
+- Live `config.cpp` preview with lightweight syntax highlighting
 - Existing config import flow for continuing work instead of starting over
 - Desktop release notifications powered by GitHub Releases
 - Multi-platform release pipeline for Windows and Linux
@@ -69,7 +69,7 @@ Hand-editing DayZ configs usually breaks down in the same places:
 - Configure item parameters through categorized forms
 - Edit `CfgSlots` and `CfgNonAIVehicles` visually
 - Build child classes / retextures from the UI
-- Preview the generated `config.cpp` live in Monaco Editor
+- Preview the generated `config.cpp` with lightweight syntax highlighting
 - Export the current config as `.cpp`
 - Export all projects as a `.zip`
 - Import an existing `config.cpp`
@@ -87,7 +87,7 @@ Hand-editing DayZ configs usually breaks down in the same places:
 | Import pipeline | Import an existing `config.cpp` and continue editing it in the UI |
 | Slots and proxies | Edit `CfgSlots` and `CfgNonAIVehicles` without manually building nested sections |
 | Variants / retextures | Create child classes and visual variants directly from the editor |
-| Live preview | Inspect the generated output in Monaco before export |
+| Live preview | Inspect the generated output before export |
 | Export | Export the current config or package multiple projects into a ZIP |
 | Desktop runtime | Use drag-and-drop import, release notifications, and update handoff from the desktop app |
 
@@ -120,7 +120,7 @@ Export one config or package multiple projects
 ### Desktop shell
 
 - Wails
-- Preload bridge for safe renderer ↔ desktop communication
+- Go/Wails bridge for safe renderer <-> desktop communication
 - Native Wails packaging for release builds
 
 ### Frontend
@@ -131,13 +131,12 @@ Export one config or package multiple projects
 - Zustand for app state, history, and persistence
 - Tailwind CSS 4
 - shadcn/ui-style component layer
-- Monaco Editor for config preview
+- Lightweight generated `config.cpp` preview
 
 ### Supporting libraries
 
 - `jszip` and `file-saver` for exports
 - `uuid` for internal IDs
-- `react-hook-form`, `zod`, and related tooling in form infrastructure
 
 ## Architecture
 

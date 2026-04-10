@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ChevronDown,
   Copy,
   Download,
-  FileCode2,
   FolderOpen,
   Redo2,
   Undo2,
@@ -192,8 +192,14 @@ export function Header() {
       />
 
       <div className="flex items-center gap-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-900 dark:bg-white">
-          <FileCode2 className="h-4 w-4 text-white dark:text-zinc-900" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-black shadow-sm dark:border-zinc-800">
+          <Image
+            src="/cfg-tools_logo.svg"
+            alt="cfg-tools logo"
+            width={32}
+            height={32}
+            className="h-full w-full object-cover"
+          />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50">

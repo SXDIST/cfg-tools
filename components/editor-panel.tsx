@@ -180,11 +180,11 @@ function HelpTooltip({
       >
         <HelpCircle className="h-3.5 w-3.5 cursor-help" />
       </button>
-      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-max max-w-65 -translate-y-1/2 rounded-md bg-foreground px-3 py-1.5 text-xs text-background opacity-0 shadow-md transition-opacity duration-150 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100">
-        <p className="text-sm">{label}</p>
+      <div className="pointer-events-none absolute left-full top-full z-50 ml-2 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-zinc-200 bg-white px-3 py-2 text-zinc-900 opacity-0 shadow-[0_8px_24px_rgba(15,23,42,0.12)] transition-all duration-150 before:absolute before:-left-1 before:top-2 before:h-2 before:w-2 before:rotate-45 before:border-b before:border-l before:border-zinc-200 before:bg-white group-hover/tooltip:translate-x-0.5 group-hover/tooltip:opacity-100 group-focus-within/tooltip:translate-x-0.5 group-focus-within/tooltip:opacity-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] dark:before:border-zinc-700 dark:before:bg-zinc-900">
+        <p className="text-[13px] leading-5">{label}</p>
         {example && (
-          <p className="mt-1 text-xs text-zinc-300">
-            <span className="font-medium">Example:</span>{" "}
+          <p className="mt-2 border-t border-zinc-100 pt-2 text-xs leading-4 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            <span className="font-semibold text-zinc-700 dark:text-zinc-200">Example:</span>{" "}
             {example}
           </p>
         )}

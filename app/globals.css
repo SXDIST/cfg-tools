@@ -127,3 +127,57 @@
         @apply bg-background text-foreground;
     }
 }
+
+.cfg-code-preview {
+    color: #d4d4d4;
+    tab-size: 4;
+}
+
+.cfg-code-preview .token.comment,
+.cfg-code-preview .token.prolog,
+.cfg-code-preview .token.doctype,
+.cfg-code-preview .token.cdata {
+    color: #6a9955;
+    font-style: italic;
+}
+
+.cfg-code-preview .token.keyword,
+.cfg-code-preview .token.control,
+.cfg-code-preview .token.directive {
+    color: #569cd6;
+}
+
+.cfg-code-preview .token.type,
+.cfg-code-preview .token.class-name {
+    color: #4ec9b0;
+}
+
+.cfg-code-preview .token.string,
+.cfg-code-preview .token.char {
+    color: #d69d85;
+}
+
+.cfg-code-preview .token.number,
+.cfg-code-preview .token.constant {
+    color: #b5e087;
+    font-weight: 500;
+}
+
+.cfg-code-preview .token.boolean {
+    color: #569cd6;
+}
+
+.cfg-code-preview .token.operator,
+.cfg-code-preview .token.punctuation {
+    color: #d4d4d4;
+}
+
+.cfg-code-preview .token.property {
+    color: #9cdcfe;
+}
+
+.cfg-code-preview .token.identifier,
+.cfg-code-preview .token.variable,
+.cfg-code-preview .token.function {
+    color: #d4d4d4;
+}

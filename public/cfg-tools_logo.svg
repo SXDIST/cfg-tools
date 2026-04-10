@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ringStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2c2c30"/>
+      <stop offset="50%" stop-color="#4a4a50"/>
+      <stop offset="100%" stop-color="#232327"/>
+    </linearGradient>
+
+    <linearGradient id="cGrad" x1="25%" y1="20%" x2="75%" y2="80%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#d9d9dc"/>
+      <stop offset="70%" stop-color="#6f6f73"/>
+      <stop offset="88%" stop-color="#151518"/>
+      <stop offset="100%" stop-color="#050506"/>
+    </linearGradient>
+
+    <mask id="cMask">
+      <rect width="1024" height="1024" fill="black"/>
+      <circle cx="512" cy="512" r="188" fill="none" stroke="white" stroke-width="70"
+              stroke-linecap="butt"
+              stroke-dasharray="980 250"/>
+    </mask>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#000000"/>
+
+  <circle cx="512" cy="512" r="430" fill="none" stroke="url(#ringStroke)" stroke-width="6"/>
+
+  <rect x="254" y="254" width="516" height="516" rx="258" fill="url(#cGrad)" mask="url(#cMask)"/>
+</svg>

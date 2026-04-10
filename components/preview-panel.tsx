@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, FileCode } from "lucide-react";
-import Editor from "@monaco-editor/react";
 import { saveAs } from "file-saver";
 
 import { buildConfigCppBlob, getSafeConfigFileStem } from "@/lib/config-export";
@@ -36,6 +35,10 @@ export function PreviewPanel() {
     if (!debouncedConfig) return "";
     return generateCpp(debouncedConfig);
   }, [debouncedConfig]);
+
+  const highlightedCode = useMemo(() => {
+    return highlightConfigCpp(code);
+  }, [code]);
 
   if (!activeConfig) {
     return (
@@ -110,43 +113,131 @@ export function PreviewPanel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden pt-2">
-        <Editor
-          height="100%"
-          defaultLanguage="cpp"
-          theme="vs-dark"
-          value={code}
-          options={{
-            readOnly: true,
-            domReadOnly: true,
-            readOnlyMessage: {
-              value: t("monaco_readonly"),
-            },
-            minimap: { enabled: false },
-            fontSize: 13,
-            lineHeight: 20,
-            fontFamily:
-              "var(--font-jetbrains-mono), 'JetBrains Mono', 'Fira Code', Consolas, monospace",
-            fontLigatures: true,
-            wordWrap: "on",
-            scrollBeyondLastLine: false,
-            smoothScrolling: true,
-            detectIndentation: false,
-            tabSize: 4,
-            insertSpaces: false,
-            useTabStops: true,
-            padding: { top: 12, bottom: 12 },
-            renderLineHighlight: "none",
-            overviewRulerLanes: 0,
-            hideCursorInOverviewRuler: true,
-            overviewRulerBorder: false,
-            scrollbar: {
-              verticalScrollbarSize: 6,
-              horizontalScrollbarSize: 6,
-            },
-          }}
-        />
+      <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
+        <pre className="cfg-code-preview min-h-full whitespace-pre-wrap break-words font-jetbrains-mono text-[13px] leading-5">
+          <code
+            dangerouslySetInnerHTML={{
+              __html: highlightedCode,
+            }}
+          />
+        </pre>
       </div>
     </div>
   );
+}
+
+const tokenPattern =
+  /\/\/.*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b[A-Za-z_][A-Za-z0-9_]*\b|\b\d+(?:\.\d+)?\b|[{}()[\];=,:]/g;
+
+const keywords = new Set([
+  "class",
+  "const",
+  "enum",
+  "false",
+  "static",
+  "struct",
+  "true",
+  "typedef",
+]);
+
+function highlightConfigCpp(code: string) {
+  let result = "";
+  let lastIndex = 0;
+  let previousIdentifier = "";
+
+  for (const match of code.matchAll(tokenPattern)) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    const nextToken = getNextToken(code, index + token.length);
+    const tokenClass = getTokenClass(
+      token,
+      previousIdentifier,
+      nextToken,
+      isAssignmentKey(code, index + token.length),
+    );
+
+    result += escapeHtml(code.slice(lastIndex, index));
+    result += `<span class="${tokenClass}">${escapeHtml(token)}</span>`;
+    lastIndex = index + token.length;
+
+    if (isIdentifier(token)) {
+      previousIdentifier = token;
+    } else if (!/^[\s:]$/.test(token)) {
+      previousIdentifier = "";
+    }
+  }
+
+  result += escapeHtml(code.slice(lastIndex));
+  return result;
+}
+
+function getTokenClass(
+  token: string,
+  previousIdentifier: string,
+  nextToken: string,
+  isAssignmentKeyToken: boolean,
+) {
+  if (token.startsWith("//") || token.startsWith("/*")) {
+    return "token comment";
+  }
+
+  if (token.startsWith('"') || token.startsWith("'")) {
+    return "token string";
+  }
+
+  if (/^\d/.test(token)) {
+    return "token number";
+  }
+
+  if (/^(true|false)$/.test(token)) {
+    return "token boolean";
+  }
+
+  if (keywords.has(token)) {
+    return "token keyword";
+  }
+
+  if (previousIdentifier === "class" || token.startsWith("Cfg")) {
+    return "token type";
+  }
+
+  if (nextToken === "=" || isAssignmentKeyToken) {
+    return "token property";
+  }
+
+  if (/^[{}()[\];=,:]$/.test(token)) {
+    return "token punctuation";
+  }
+
+  return "token identifier";
+}
+
+function getNextToken(code: string, startIndex: number) {
+  const rest = code.slice(startIndex);
+  const match = rest.match(/^\s*([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[{}()[\];=,:]|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/);
+  return match?.[1] || "";
+}
+
+function isAssignmentKey(code: string, startIndex: number) {
+  const rest = code.slice(startIndex).trimStart();
+
+  if (rest.startsWith("=")) {
+    return true;
+  }
+
+  const arrayAssignmentMatch = rest.match(/^\[\s*\]\s*=/);
+  return Boolean(arrayAssignmentMatch);
+}
+
+function isIdentifier(token: string) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

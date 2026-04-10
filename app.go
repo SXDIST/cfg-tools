@@ -19,12 +19,12 @@ import (
 )
 
 const (
-	githubOwner        = "SXDIST"
-	githubRepo         = "cfg-tools"
-	updateEventName    = "app:update-available"
-	preferencesFile    = "preferences.json"
-	defaultLocale      = "en"
-	appName            = "cfg-tools"
+	githubOwner     = "SXDIST"
+	githubRepo      = "cfg-tools"
+	updateEventName = "app:update-available"
+	preferencesFile = "preferences.json"
+	defaultLocale   = "en"
+	appName         = "cfg-tools"
 )
 
 //go:embed package.json
@@ -376,7 +376,10 @@ func pickWindowsInstallerURL(release *githubRelease) string {
 			continue
 		}
 
-		if strings.HasSuffix(assetName, ".exe") && (strings.Contains(assetName, "setup") || strings.Contains(assetName, "nsis")) {
+		if strings.HasSuffix(assetName, ".exe") &&
+			(strings.Contains(assetName, "setup") ||
+				strings.Contains(assetName, "installer") ||
+				strings.Contains(assetName, "nsis")) {
 			return asset.BrowserDownloadURL
 		}
 	}

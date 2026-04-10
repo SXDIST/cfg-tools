@@ -43,7 +43,6 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
     copied: "Скопировано!",
     copy: "Копировать",
     download: "Скачать",
-    monaco_readonly: "Конфиг генерируется автоматически.",
     project_manager: "Управление проектами",
     project_manager_desc:
       "Быстро переключайтесь между проектами, переименовывайте их и удаляйте без похода по маленьким меню.",
@@ -201,7 +200,6 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
     copied: "Copied!",
     copy: "Copy",
     download: "Download",
-    monaco_readonly: "The config is generated automatically.",
     project_manager: "Project manager",
     project_manager_desc:
       "Quickly switch between projects, rename them, and remove them without digging through nested menus.",

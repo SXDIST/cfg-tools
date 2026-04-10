@@ -14,26 +14,31 @@ import (
 //go:embed all:out
 var assets embed.FS
 
+//go:embed build/appicon.png
+var icon []byte
+
 func main() {
+	configureAppIdentity()
+
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:                  "cfg-tools",
-		Width:                  1280,
-		Height:                 720,
-		MinWidth:               1100,
-		MinHeight:              680,
-		DisableResize:          false,
-		Frameless:              false,
-		AssetServer:            &assetserver.Options{Assets: assets},
-		BackgroundColour:       &options.RGBA{R: 255, G: 255, B: 255, A: 1},
-		EnableDefaultContextMenu: true,
+		Title:                    "cfg-tools",
+		Width:                    1280,
+		Height:                   720,
+		MinWidth:                 1100,
+		MinHeight:                680,
+		DisableResize:            false,
+		Frameless:                false,
+		AssetServer:              &assetserver.Options{Assets: assets},
+		BackgroundColour:         &options.RGBA{R: 255, G: 255, B: 255, A: 1},
+		EnableDefaultContextMenu: false,
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop:     true,
 			DisableWebViewDrop: true,
 		},
-		OnStartup:              app.startup,
-		OnDomReady:             app.domReady,
+		OnStartup:  app.startup,
+		OnDomReady: app.domReady,
 		Bind: []interface{}{
 			app,
 		},
@@ -43,6 +48,7 @@ func main() {
 		},
 		Linux: &linux.Options{
 			ProgramName: "cfg-tools",
+			Icon:        icon,
 		},
 	})
 	if err != nil {
