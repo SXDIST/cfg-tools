@@ -217,6 +217,26 @@ const DAYZ_SOUND_IMPACT_OPTIONS: SelectOption[] = [
     { value: 'grenade', label: 'Grenade', description: 'Гранаты и взрывчатые предметы.' },
 ];
 
+const DAYZ_SOUND_ATT_OPTIONS: SelectOption[] = [
+    { value: 'None', label: 'None', description: 'Без специального профиля звукового поведения при ношении.' },
+    { value: 'Small', label: 'Small', description: 'Небольшие предметы и компактное снаряжение.' },
+    { value: 'Outdoor', label: 'Outdoor', description: 'Походное и утилитарное снаряжение.' },
+    { value: 'Military', label: 'Military', description: 'Военное и тактическое снаряжение.' },
+    { value: 'Rifle', label: 'Rifle', description: 'Длинноствольное оружие и близкие к нему тяжёлые предметы.' },
+    { value: 'Shotgun', label: 'Shotgun', description: 'Дробовики и схожие по профилю тяжёлые длинные стволы.' },
+    { value: 'Boots', label: 'Boots', description: 'Тяжёлая обувь с жёстким шагом.' },
+    { value: 'Sneakers', label: 'Sneakers', description: 'Лёгкая мягкая обувь.' },
+    { value: 'TShirt', label: 'TShirt', description: 'Лёгкая тонкая одежда.' },
+    { value: 'WoolShirt', label: 'Wool Shirt', description: 'Плотная мягкая одежда из более тёплой ткани.' },
+    { value: 'ChemlonDress', label: 'Chemlon Dress', description: 'Лёгкая синтетическая одежда и платья.' },
+    { value: 'HeavyJacket', label: 'Heavy Jacket', description: 'Тяжёлая верхняя одежда и бронеэлементы этого профиля.' },
+    { value: 'LeatherJacket', label: 'Leather Jacket', description: 'Кожаная верхняя одежда.' },
+    { value: 'Coat', label: 'Coat', description: 'Пальто и длинная плотная верхняя одежда.' },
+    { value: 'NylonJacket', label: 'Nylon Jacket', description: 'Нейлоновые куртки и лёгкая шуршащая синтетика.' },
+    { value: 'Ghillie', label: 'Ghillie', description: 'Гилли-экипировка с мягким шелестом.' },
+    { value: 'Chainmail', label: 'Chainmail', description: 'Кольчужные и редкие металлические тканевые профили.' },
+];
+
 const DAYZ_EXTRA_ATTACHMENT_OPTIONS: SelectOption[] = [
     { value: 'magazine', label: 'magazine', description: 'Primary magazine slot.' },
     { value: 'pistol', label: 'pistol', description: 'Pistol or short firearm slot.' },
@@ -793,6 +813,16 @@ export const CATALOG: CategoryDef[] = [
                 placement: 'root',
                 allowCustom: true,
                 selectOptions: DAYZ_SOUND_IMPACT_OPTIONS
+            },
+            {
+                key: 'soundAttType',
+                label: 'Attachment Sound Type',
+                description: 'Профиль звукового поведения предмета при ношении или перемещении на персонаже (foley / шелест экипировки).',
+                type: 'select',
+                defaultValue: 'None',
+                placement: 'root',
+                allowCustom: true,
+                selectOptions: DAYZ_SOUND_ATT_OPTIONS
             },
             {
                 key: 'soundVoiceType',
