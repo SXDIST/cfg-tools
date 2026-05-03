@@ -287,3 +287,38 @@ export function generateCpp(config: ConfigData): string {
 
     return out;
 }
+
+/**
+ * Build a map of class ID → 1-based line number for the main class declaration
+ * inside the generated C++ output. Handles non-unique class names correctly
+ * because it walks config.classes in generation order and marks each matched
+ * line as consumed.
+ */
+export function buildClassLineMap(
+    code: string,
+    config: ConfigData,
+): Record<string, number> {
+    const lines = code.split('\n');
+    const map: Record<string, number> = {};
+    const usedLines = new Set<number>();
+
+    for (const cls of config.classes) {
+        const className =
+            cls.className.replace(/[^a-zA-Z0-9_]/g, '') || 'ExampleClass';
+        const baseClass = cls.baseClass
+            ? cls.baseClass.replace(/[^a-zA-Z0-9_]/g, '')
+            : 'Default_Base';
+
+        const needle = `${indent(1)}class ${className}: ${baseClass}`;
+
+        for (let i = 0; i < lines.length; i++) {
+            if (!usedLines.has(i) && lines[i] === needle) {
+                map[cls.id] = i + 1;
+                usedLines.add(i);
+                break;
+            }
+        }
+    }
+
+    return map;
+}

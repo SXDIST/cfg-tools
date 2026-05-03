@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, FileCode } from "lucide-react";
 import { saveAs } from "file-saver";
+import { Editor } from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
 
 import { buildConfigCppBlob, getSafeConfigFileStem } from "@/lib/config-export";
-import { generateCpp } from "@/lib/generator";
+import { generateCpp, buildClassLineMap } from "@/lib/generator";
 import { useAppStore } from "@/lib/store";
 import { useLocale } from "./locale-provider";
 import { Button } from "./ui/button";
@@ -15,6 +17,13 @@ export function PreviewPanel() {
   const activeConfigId = useAppStore((s) => s.activeConfigId);
   const activeConfig = configs.find((c) => c.id === activeConfigId);
   const { t } = useLocale();
+
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const lastScrolledTabId = useRef<string | null>(null);
+
+  const activeTabId = activeConfig?.activeTabId;
+  const activeTab = activeConfig?.classes.find((c) => c.id === activeTabId);
+  const activeClassName = activeTab?.className?.replace(/[^a-zA-Z0-9_]/g, "") || "ExampleClass";
 
   const [copied, setCopied] = useState(false);
   const [debouncedConfig, setDebouncedConfig] = useState(activeConfig);
@@ -36,9 +45,74 @@ export function PreviewPanel() {
     return generateCpp(debouncedConfig);
   }, [debouncedConfig]);
 
-  const highlightedCode = useMemo(() => {
-    return highlightConfigCpp(code);
-  }, [code]);
+  useEffect(() => {
+    if (!editorRef.current || !activeTabId || !activeConfig) return;
+
+    if (lastScrolledTabId.current !== activeTabId) {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (attempts > 15) {
+          clearInterval(interval);
+          return;
+        }
+
+        const currentModel = editorRef.current?.getModel();
+        if (!currentModel) return;
+
+        // Ensure Monaco has loaded the exact text we are currently holding
+        const editorCode = currentModel.getValue();
+        if (!editorCode.includes(code.substring(0, Math.min(100, code.length)))) {
+           return; // Model is not synced yet
+        }
+
+        const lineMap = buildClassLineMap(editorCode, activeConfig);
+        const targetLine = lineMap[activeTabId];
+
+        if (targetLine) {
+          clearInterval(interval);
+          const editor = editorRef.current;
+          if (editor) {
+            editor.revealLineInCenter(targetLine);
+            const lineContent = currentModel.getLineContent(targetLine);
+            editor.setSelection({
+              startLineNumber: targetLine,
+              startColumn: 1,
+              endLineNumber: targetLine,
+              endColumn: lineContent.length + 1,
+            });
+            editor.focus();
+          }
+          lastScrolledTabId.current = activeTabId;
+        }
+      }, 100);
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTabId, activeConfig, code]);
+
+  const handleEditorMount = (editorInstance: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editorInstance;
+    if (activeTabId && activeConfig) {
+      const model = editorInstance.getModel();
+      if (model) {
+        const editorCode = model.getValue();
+        const lineMap = buildClassLineMap(editorCode, activeConfig);
+        const targetLine = lineMap[activeTabId];
+        if (targetLine) {
+          editorInstance.revealLineInCenter(targetLine);
+          const lineContent = model.getLineContent(targetLine);
+          editorInstance.setSelection({
+            startLineNumber: targetLine,
+            startColumn: 1,
+            endLineNumber: targetLine,
+            endColumn: lineContent.length + 1,
+          });
+          lastScrolledTabId.current = activeTabId;
+        }
+      }
+    }
+  };
 
   if (!activeConfig) {
     return (
@@ -113,131 +187,31 @@ export function PreviewPanel() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
-        <pre className="cfg-code-preview min-h-full whitespace-pre-wrap break-words font-jetbrains-mono text-[13px] leading-5">
-          <code
-            dangerouslySetInnerHTML={{
-              __html: highlightedCode,
-            }}
-          />
-        </pre>
+      <div className="min-h-0 flex-1">
+        <Editor
+          height="100%"
+          language="cpp"
+          theme="vs-dark"
+          value={code}
+          onMount={handleEditorMount}
+          options={{
+            readOnly: true,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            wordWrap: "on",
+            padding: { top: 16, bottom: 16 },
+            fontFamily: "var(--font-jetbrains-mono), monospace",
+            fontSize: 13,
+          }}
+          loading={
+            <div className="flex h-full items-center justify-center font-jetbrains-mono text-sm text-zinc-500">
+              {t("loading") || "Loading editor..."}
+            </div>
+          }
+        />
       </div>
     </div>
   );
 }
 
-const tokenPattern =
-  /\/\/.*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b[A-Za-z_][A-Za-z0-9_]*\b|\b\d+(?:\.\d+)?\b|[{}()[\];=,:]/g;
 
-const keywords = new Set([
-  "class",
-  "const",
-  "enum",
-  "false",
-  "static",
-  "struct",
-  "true",
-  "typedef",
-]);
-
-function highlightConfigCpp(code: string) {
-  let result = "";
-  let lastIndex = 0;
-  let previousIdentifier = "";
-
-  for (const match of code.matchAll(tokenPattern)) {
-    const token = match[0];
-    const index = match.index ?? 0;
-    const nextToken = getNextToken(code, index + token.length);
-    const tokenClass = getTokenClass(
-      token,
-      previousIdentifier,
-      nextToken,
-      isAssignmentKey(code, index + token.length),
-    );
-
-    result += escapeHtml(code.slice(lastIndex, index));
-    result += `<span class="${tokenClass}">${escapeHtml(token)}</span>`;
-    lastIndex = index + token.length;
-
-    if (isIdentifier(token)) {
-      previousIdentifier = token;
-    } else if (!/^[\s:]$/.test(token)) {
-      previousIdentifier = "";
-    }
-  }
-
-  result += escapeHtml(code.slice(lastIndex));
-  return result;
-}
-
-function getTokenClass(
-  token: string,
-  previousIdentifier: string,
-  nextToken: string,
-  isAssignmentKeyToken: boolean,
-) {
-  if (token.startsWith("//") || token.startsWith("/*")) {
-    return "token comment";
-  }
-
-  if (token.startsWith('"') || token.startsWith("'")) {
-    return "token string";
-  }
-
-  if (/^\d/.test(token)) {
-    return "token number";
-  }
-
-  if (/^(true|false)$/.test(token)) {
-    return "token boolean";
-  }
-
-  if (keywords.has(token)) {
-    return "token keyword";
-  }
-
-  if (previousIdentifier === "class" || token.startsWith("Cfg")) {
-    return "token type";
-  }
-
-  if (nextToken === "=" || isAssignmentKeyToken) {
-    return "token property";
-  }
-
-  if (/^[{}()[\];=,:]$/.test(token)) {
-    return "token punctuation";
-  }
-
-  return "token identifier";
-}
-
-function getNextToken(code: string, startIndex: number) {
-  const rest = code.slice(startIndex);
-  const match = rest.match(/^\s*([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[{}()[\];=,:]|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/);
-  return match?.[1] || "";
-}
-
-function isAssignmentKey(code: string, startIndex: number) {
-  const rest = code.slice(startIndex).trimStart();
-
-  if (rest.startsWith("=")) {
-    return true;
-  }
-
-  const arrayAssignmentMatch = rest.match(/^\[\s*\]\s*=/);
-  return Boolean(arrayAssignmentMatch);
-}
-
-function isIdentifier(token: string) {
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token);
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}

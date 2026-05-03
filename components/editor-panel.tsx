@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, useTransition } from "react";
 import {
   useAppStore,
   ChildClassData,
@@ -907,6 +907,7 @@ const RetexturesSection = memo(function RetexturesSection({
 
 export function EditorPanel() {
   const { t } = useLocale();
+  const [isPending, startTransition] = useTransition();
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
@@ -1287,7 +1288,11 @@ export function EditorPanel() {
                       setDragTabIndex(null);
                       setDropTabIndex(null);
                     }}
-                    onClick={() => setActiveTab(config.id, cls.id)}
+                    onClick={() => {
+                      startTransition(() => {
+                        setActiveTab(config.id, cls.id);
+                      });
+                    }}
                   >
                     {dropTabIndex === index && dragTabIndex !== index && (
                       <span className="absolute inset-0 rounded-md ring-2 ring-blue-400/70 dark:ring-blue-500/70 bg-blue-50/40 dark:bg-blue-500/10 pointer-events-none" />
