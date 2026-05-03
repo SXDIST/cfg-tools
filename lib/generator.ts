@@ -1,7 +1,12 @@
 import { ConfigData, CustomParamData } from './store';
-import { CATALOG } from './catalog';
+import { CATALOG, CFG_MODS_CATALOG } from './catalog';
 
 const INDENT = "\t";
+
+type RenderTreeNode = {
+    _props: string[];
+    [key: string]: string[] | RenderTreeNode;
+};
 
 function indent(level: number): string {
     return INDENT.repeat(level);
@@ -35,19 +40,46 @@ function formatValue(val: any, type: string): string {
     return typeof val === 'string' ? `"${val}"` : `${val}`;
 }
 
-function pushProperty(tree: any, placement: string | undefined, property: string) {
+const CFG_MODS_PROPERTY_NAMES: Record<string, string> = {
+    imageSetsFiles: 'files',
+    gameScriptModuleValue: 'value',
+    gameScriptModuleFiles: 'files',
+    worldScriptModuleValue: 'value',
+    worldScriptModuleFiles: 'files',
+    missionScriptModuleValue: 'value',
+    missionScriptModuleFiles: 'files',
+};
+
+const CFG_MODS_PATH_KEYS = new Set([
+    'picture',
+    'inputs',
+    'imageSetsFiles',
+    'gameScriptModuleFiles',
+    'worldScriptModuleFiles',
+    'missionScriptModuleFiles',
+]);
+
+function normalizeCfgModsValue(key: string, value: unknown) {
+    if (!CFG_MODS_PATH_KEYS.has(key)) return value;
+    if (Array.isArray(value)) {
+        return value.map((item) => typeof item === 'string' ? item.replace(/\\/g, '/') : item);
+    }
+    return typeof value === 'string' ? value.replace(/\\/g, '/') : value;
+}
+
+function pushProperty(tree: RenderTreeNode, placement: string | undefined, property: string) {
     if (!placement || placement === 'root') {
         tree._props.push(property);
         return;
     }
 
     const parts = placement.split('.').filter(Boolean);
-    let currentLevel = tree;
+    let currentLevel: RenderTreeNode = tree;
     parts.forEach((part) => {
-        if (!currentLevel[part]) {
+        if (!currentLevel[part] || Array.isArray(currentLevel[part])) {
             currentLevel[part] = { _props: [] };
         }
-        currentLevel = currentLevel[part];
+        currentLevel = currentLevel[part] as RenderTreeNode;
     });
     currentLevel._props.push(property);
 }
@@ -62,7 +94,7 @@ function formatCustomParam(param: CustomParamData): string | null {
 }
 
 // Render tree recursively
-function renderTree(node: any, indentLevel: number): string {
+function renderTree(node: RenderTreeNode, indentLevel: number): string {
     let res = '';
     const currentIndent = indent(indentLevel);
 
@@ -77,6 +109,7 @@ function renderTree(node: any, indentLevel: number): string {
     Object.keys(node).forEach(key => {
         if (key !== '_props') {
             const childNode = node[key];
+            if (Array.isArray(childNode)) return;
             const childKeys = Object.keys(childNode).filter(k => k !== '_props');
 
             // If the class has exactly 1 property and no nested classes, print it inline
@@ -93,11 +126,47 @@ function renderTree(node: any, indentLevel: number): string {
     return res;
 }
 
+function renderCfgMods(config: ConfigData): string {
+    const cfgMods = config.cfgMods;
+    if (!cfgMods?.enabled) return '';
+
+    const params = CFG_MODS_CATALOG.flatMap((category) => category.params);
+    const classNameRaw = cfgMods.values.modClassName ?? 'MyMod';
+    const className = String(classNameRaw).replace(/[^a-zA-Z0-9_]/g, '') || 'MyMod';
+    const tree: RenderTreeNode = { _props: [] };
+
+    params.forEach((param) => {
+        if (param.key === 'modClassName') return;
+        if (!cfgMods.enabledParams[param.key]) return;
+
+        let val = cfgMods.values[param.key];
+        if (val === undefined || val === null) {
+            val = param.defaultValue;
+        }
+
+        val = normalizeCfgModsValue(param.key, val);
+        const propertyName = CFG_MODS_PROPERTY_NAMES[param.key] || param.key;
+        const isArrayProp = param.type.startsWith('array') || param.type === 'multi-select';
+        const formattedValue = formatValue(val, param.type);
+        const formatted = `${propertyName}${isArrayProp ? '[]' : ''} = ${formattedValue};`;
+
+        if (param.placement === 'root') {
+            tree._props.push(formatted);
+        } else if (param.placement) {
+            pushProperty(tree, param.placement, formatted);
+        }
+    });
+
+    const rendered = renderTree(tree, 2);
+    return `class CfgMods\n{\n${indent(1)}class ${className}\n${indent(1)}{\n${rendered}${indent(1)}};\n};\n\n`;
+}
+
 export function generateCpp(config: ConfigData): string {
     const projectName = config.name.replace(/[^a-zA-Z0-9_]/g, '') || 'ExampleProject';
 
     const addons = (config.requiredAddons || ['DZ_Data', 'DZ_Characters']).map(a => `"${a}"`).join(',');
     let out = `class CfgPatches\n{\n${indent(1)}class ${projectName}\n${indent(1)}{\n${indent(2)}requiredAddons[] = {${addons}};\n${indent(1)}};\n};\n\n`;
+    out += renderCfgMods(config);
 
     const localClassNames = new Set<string>(
         config.classes.map((cls) => cls.className.replace(/[^a-zA-Z0-9_]/g, '') || 'ExampleClass')
@@ -126,7 +195,7 @@ export function generateCpp(config: ConfigData): string {
         const className = cls.className.replace(/[^a-zA-Z0-9_]/g, '') || 'ExampleClass';
         const baseClass = cls.baseClass ? cls.baseClass.replace(/[^a-zA-Z0-9_]/g, '') : 'Default_Base';
 
-        const tree: any = { _props: [] };
+        const tree: RenderTreeNode = { _props: [] };
 
         CATALOG.forEach(category => {
             category.params.forEach(param => {
@@ -146,20 +215,20 @@ export function generateCpp(config: ConfigData): string {
 
                     if (param.type === 'armor_modifier') {
                         const parts = (param.placement || '').split('.');
-                        let currentLevel = tree;
+                        let currentLevel: RenderTreeNode = tree;
                         parts.forEach(part => {
-                            if (!currentLevel[part]) {
+                            if (!currentLevel[part] || Array.isArray(currentLevel[part])) {
                                 currentLevel[part] = { _props: [] };
                             }
-                            currentLevel = currentLevel[part];
+                            currentLevel = currentLevel[part] as RenderTreeNode;
                         });
 
                         ['Health', 'Blood', 'Shock'].forEach(subClass => {
-                            if (!currentLevel[subClass]) {
+                            if (!currentLevel[subClass] || Array.isArray(currentLevel[subClass])) {
                                 currentLevel[subClass] = { _props: [] };
                             }
                             const dmg = val && val[subClass] !== undefined ? val[subClass] : 1.0;
-                            currentLevel[subClass]._props.push(`damage = ${dmg};`);
+                            (currentLevel[subClass] as RenderTreeNode)._props.push(`damage = ${dmg};`);
                         });
                     } else if (param.key === 'healthLevels') {
                         if (val && Array.isArray(val) && val.length > 0) {
@@ -181,24 +250,24 @@ export function generateCpp(config: ConfigData): string {
                             block += `${i1}};`;
 
                             const parts = (param.placement || '').split('.');
-                            let currentLevel = tree;
+                            let currentLevel: RenderTreeNode = tree;
                             parts.forEach(part => {
-                                if (!currentLevel[part]) {
+                                if (!currentLevel[part] || Array.isArray(currentLevel[part])) {
                                     currentLevel[part] = { _props: [] };
                                 }
-                                currentLevel = currentLevel[part];
+                                currentLevel = currentLevel[part] as RenderTreeNode;
                             });
                             currentLevel._props.push(block);
                         }
                     } else if (param.type === 'anim_event') {
                         if (val && val.soundSet) {
                             const parts = (param.placement || '').split('.');
-                            let currentLevel = tree;
+                            let currentLevel: RenderTreeNode = tree;
                             parts.forEach(part => {
-                                if (!currentLevel[part]) {
+                                if (!currentLevel[part] || Array.isArray(currentLevel[part])) {
                                     currentLevel[part] = { _props: [] };
                                 }
-                                currentLevel = currentLevel[part];
+                                currentLevel = currentLevel[part] as RenderTreeNode;
                             });
                             currentLevel._props.push(`soundSet = "${val.soundSet}";`);
                             currentLevel._props.push(`id = ${val.id};`);

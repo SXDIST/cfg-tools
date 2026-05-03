@@ -493,6 +493,47 @@ export interface CategoryDef {
     params: ParamDef[];
 }
 
+export const CFG_MODS_CATALOG: CategoryDef[] = [
+    {
+        id: 'cfgMods',
+        group: 'systems',
+        order: 0,
+        title: 'CfgMods',
+        description: 'Дополнительный блок описания мода. Он нужен для скриптовых модулей, inputs.xml, иконок и метаданных мода. В одном config.cpp может быть только один class CfgMods.',
+        searchTerms: ['cfgmods', 'mod', 'scripts', 'dependencies', 'defs', 'game', 'world', 'mission', 'inputs'],
+        params: [
+            { key: 'modClassName', label: 'Mod Class', description: 'Имя внутреннего класса внутри CfgMods. Это технический идентификатор мода в конфиге, например class Sadist. Используйте только латиницу, цифры и подчёркивания, чтобы имя корректно работало в DayZ.', example: 'Sadist', type: 'string', defaultValue: 'MyMod', placement: 'root' },
+            { key: 'dir', label: 'dir', description: 'Папка мода, которую игра показывает и использует как путь к корню мода. Обычно совпадает с папкой вашего проекта или кратким именем автора/мода.', example: 'SXDIST', type: 'string', defaultValue: 'MyMod', placement: 'root' },
+            { key: 'picture', label: 'picture', description: 'Путь к картинке мода в лаунчере или меню. Можно оставить пустым, если изображение не нужно. Для путей в CfgMods используйте прямые слеши /, например MyMod/UI/logo.paa.', example: 'MyMod/UI/logo.paa', type: 'string', defaultValue: '', placement: 'root' },
+            { key: 'action', label: 'action', description: 'Ссылка или действие, которое может быть связано с модом. Часто оставляют пустым. Если указываете URL или путь, проверьте, что он нужен именно вашему способу публикации.', example: 'https://example.com', type: 'string', defaultValue: '', placement: 'root' },
+            { key: 'hideName', label: 'hideName', description: 'Скрывает отображаемое имя мода в некоторых интерфейсах. Значение 1 скрывает имя, 0 оставляет видимым.', example: '1 — имя скрыто, 0 — имя видно.', type: 'boolean', defaultValue: 1, placement: 'root' },
+            { key: 'hidePicture', label: 'hidePicture', description: 'Скрывает картинку мода в интерфейсе. Значение 1 скрывает изображение, 0 позволяет показывать его, если picture заполнен.', example: '1 — картинка скрыта, 0 — картинка может отображаться.', type: 'boolean', defaultValue: 1, placement: 'root' },
+            { key: 'name', label: 'name', description: 'Публичное название мода. Это человекочитаемое имя, которое видит пользователь, поэтому сюда обычно пишут бренд или название проекта.', example: 'SXDIST', type: 'string', defaultValue: 'My Mod', placement: 'root' },
+            { key: 'tooltip', label: 'tooltip', description: 'Короткая подсказка или строка описания мода. Можно указать обычный текст или ключ локализации, если мод использует stringtable.', example: 'My DayZ mod tooltip', type: 'string', defaultValue: 'tooltip', placement: 'root' },
+            { key: 'overview', label: 'overview', description: 'Более общее описание мода. Используется как обзорная строка в интерфейсах, где показывается информация о моде.', example: 'SXDIST', type: 'string', defaultValue: 'My Mod overview', placement: 'root' },
+            { key: 'credits', label: 'credits', description: 'Кредиты и благодарности. Здесь удобно указать команду, автора ресурсов или людей, которые помогали с модом.', example: 'sxdist', type: 'string', defaultValue: '', placement: 'root' },
+            { key: 'author', label: 'author', description: 'Автор мода. Это поле обычно заполняют именем автора, команды или студии.', example: 'SXDIST', type: 'string', defaultValue: 'Author', placement: 'root' },
+            { key: 'authorID', label: 'authorID', description: 'Идентификатор автора. Если отдельный ID не используется, часто ставят "0".', example: '0', type: 'string', defaultValue: '0', placement: 'root' },
+            { key: 'version', label: 'version', description: 'Версия мода как строка. Полезно держать её синхронной с релизом, чтобы в конфиге было понятно, какая сборка опубликована.', example: '0.8', type: 'string', defaultValue: '1.0', placement: 'root' },
+            { key: 'extra', label: 'extra', description: 'Дополнительный числовой флаг CfgMods. В большинстве модов его оставляют 0, если нет особой причины использовать другое значение.', example: '0', type: 'number', defaultValue: 0, placement: 'root' },
+            { key: 'type', label: 'type', description: 'Тип записи CfgMods. Для обычного DayZ-мода обычно используется значение "mod".', example: 'mod', type: 'string', defaultValue: 'mod', placement: 'root' },
+            { key: 'inputs', label: 'inputs', description: 'Опциональный путь к inputs.xml, если мод добавляет пользовательские бинды управления. Путь должен быть с прямыми слешами /.', example: 'Sadist/Scripts/inputs.xml', type: 'string', defaultValue: 'MyMod/Scripts/inputs.xml', placement: 'root' },
+            { key: 'dependencies', label: 'dependencies', description: 'Опциональный список скриптовых зависимостей мода. Указывайте только те уровни, которые реально нужны: Game, World, Mission. Если скриптовых модулей нет, параметр можно не включать.', example: '["Game", "World", "Mission"]', type: 'array_of_strings', defaultValue: ['Game', 'World', 'Mission'], placement: 'root', selectOptions: [
+                { value: 'Game', label: 'Game', description: '3_Game: базовая игровая логика и классы, доступные нижним уровням.' },
+                { value: 'World', label: 'World', description: '4_World: логика мира, объектов, сущностей и игровых систем.' },
+                { value: 'Mission', label: 'Mission', description: '5_Mission: миссионная логика, UI и клиентские сценарии.' },
+            ], allowCustom: true },
+            { key: 'imageSetsFiles', label: 'imageSets files', description: 'Опциональный список .imageset файлов для class defs > class imageSets. Нужен, если мод регистрирует наборы иконок или UI-изображений. Пути обязательно пишите через /.', example: 'Sadist/Scripts/Icons/SDT.imageset', type: 'array_of_strings', defaultValue: ['MyMod/Scripts/Icons/MyMod.imageset'], placement: 'defs.imageSets' },
+            { key: 'gameScriptModuleValue', label: 'gameScriptModule value', description: 'Опциональное поле value внутри gameScriptModule. В большинстве случаев его оставляют пустым, но параметр можно включить, если ваш шаблон CfgMods требует явного value.', example: '', type: 'string', defaultValue: '', placement: 'defs.gameScriptModule' },
+            { key: 'gameScriptModuleFiles', label: 'gameScriptModule files', description: 'Опциональные пути к папкам 3_Game. Включайте только если у мода есть скрипты уровня Game. Пути должны использовать прямые слеши /.', example: 'Sadist/Scripts/3_Game', type: 'array_of_strings', defaultValue: ['MyMod/Scripts/3_Game'], placement: 'defs.gameScriptModule' },
+            { key: 'worldScriptModuleValue', label: 'worldScriptModule value', description: 'Опциональное поле value внутри worldScriptModule. Обычно пустая строка, если мод не требует особой настройки загрузки этого уровня.', example: '', type: 'string', defaultValue: '', placement: 'defs.worldScriptModule' },
+            { key: 'worldScriptModuleFiles', label: 'worldScriptModule files', description: 'Опциональные пути к папкам 4_World. Включайте только если мод содержит скрипты мира, объектов или игровых систем. Пути должны использовать прямые слеши /.', example: 'Sadist/Scripts/4_World', type: 'array_of_strings', defaultValue: ['MyMod/Scripts/4_World'], placement: 'defs.worldScriptModule' },
+            { key: 'missionScriptModuleValue', label: 'missionScriptModule value', description: 'Опциональное поле value внутри missionScriptModule. Обычно пустая строка, если миссионный модуль не требует отдельного значения.', example: '', type: 'string', defaultValue: '', placement: 'defs.missionScriptModule' },
+            { key: 'missionScriptModuleFiles', label: 'missionScriptModule files', description: 'Опциональные пути к папкам 5_Mission. Включайте только если мод содержит миссионные или UI-скрипты. Пути должны использовать прямые слеши /.', example: 'Sadist/Scripts/5_Mission', type: 'array_of_strings', defaultValue: ['MyMod/Scripts/5_Mission'], placement: 'defs.missionScriptModule' },
+        ]
+    }
+];
+
 export const CATALOG: CategoryDef[] = [
     {
         id: 'base',

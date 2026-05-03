@@ -1,4 +1,4 @@
-import { CATALOG, type CategoryDef, type ParamDef, type SelectOption } from "@/lib/catalog";
+import { CATALOG, CFG_MODS_CATALOG, type CategoryDef, type ParamDef, type SelectOption } from "@/lib/catalog";
 
 export type Locale = "ru" | "en";
 
@@ -327,6 +327,7 @@ export const messages: Record<Locale, Record<string, MessageValue>> = {
 };
 
 const categoryTitleEn: Record<string, string> = {
+  cfgMods: "CfgMods",
   base: "Core item settings",
   visual: "Model and materials",
   inventory: "Inventory slots",
@@ -345,6 +346,8 @@ const categoryTitleEn: Record<string, string> = {
 };
 
 const categoryDescriptionEn: Record<string, string> = {
+  cfgMods:
+    "Optional project-level mod metadata, script modules, inputs.xml, image sets, and script dependencies. Only one CfgMods block can exist in a config.cpp.",
   base: "Main identifiers, model path, physics, and core item settings.",
   visual: "Model paths, hidden selections, textures, and material settings.",
   inventory: "Where the item can be equipped and what attachments it accepts.",
@@ -368,6 +371,153 @@ const categoryGroupEn: Record<string, string> = {
   apparel: "Clothing and protection",
   combat: "Combat and sound",
   systems: "Systems and utilities",
+};
+
+const cfgModsParamEn: Record<string, Pick<ParamDef, "label" | "description" | "example">> = {
+  modClassName: {
+    label: "Mod Class",
+    description:
+      "The internal class name inside CfgMods, for example class Sadist. Use only Latin letters, numbers, and underscores so the class name stays valid in DayZ config syntax.",
+    example: "Sadist",
+  },
+  dir: {
+    label: "dir",
+    description:
+      "The mod folder or root directory shown by the game. This usually matches your mod folder, project name, or author namespace.",
+    example: "SXDIST",
+  },
+  picture: {
+    label: "picture",
+    description:
+      "Optional image path for the mod. Leave it empty if you do not need an image. CfgMods paths should use forward slashes /, for example MyMod/UI/logo.paa.",
+    example: "MyMod/UI/logo.paa",
+  },
+  action: {
+    label: "action",
+    description:
+      "Optional action or link associated with the mod. Many configs leave this empty unless a launcher or publication workflow expects it.",
+    example: "https://example.com",
+  },
+  hideName: {
+    label: "hideName",
+    description:
+      "Controls whether the mod name is hidden in supported UI contexts. Use 1 to hide the name and 0 to keep it visible.",
+    example: "1 hides the name, 0 leaves it visible.",
+  },
+  hidePicture: {
+    label: "hidePicture",
+    description:
+      "Controls whether the mod picture is hidden. Use 1 to hide it and 0 to allow the image from picture to be shown.",
+    example: "1 hides the picture, 0 allows it.",
+  },
+  name: {
+    label: "name",
+    description:
+      "The public display name of the mod. Put the human-readable mod, team, or brand name here.",
+    example: "SXDIST",
+  },
+  tooltip: {
+    label: "tooltip",
+    description:
+      "A short tooltip or description string for the mod. You can use plain text or a stringtable key if your mod localizes this field.",
+    example: "My DayZ mod tooltip",
+  },
+  overview: {
+    label: "overview",
+    description:
+      "A broader overview text for the mod, used by interfaces that show mod information.",
+    example: "SXDIST",
+  },
+  credits: {
+    label: "credits",
+    description:
+      "Credits and acknowledgements. Use this for team names, asset authors, or people who helped with the mod.",
+    example: "sxdist",
+  },
+  author: {
+    label: "author",
+    description:
+      "The mod author, team, or studio name.",
+    example: "SXDIST",
+  },
+  authorID: {
+    label: "authorID",
+    description:
+      "The author identifier. If you do not use a dedicated ID, many configs set this to \"0\".",
+    example: "0",
+  },
+  version: {
+    label: "version",
+    description:
+      "The mod version as a string. Keep it aligned with your release version so the generated config identifies the build clearly.",
+    example: "0.8",
+  },
+  extra: {
+    label: "extra",
+    description:
+      "Additional numeric CfgMods flag. Most mods leave this at 0 unless a specific template requires another value.",
+    example: "0",
+  },
+  type: {
+    label: "type",
+    description:
+      "The CfgMods record type. For a normal DayZ mod this is usually \"mod\".",
+    example: "mod",
+  },
+  inputs: {
+    label: "inputs",
+    description:
+      "Optional path to inputs.xml when the mod adds custom keybinds. Use forward slashes / in this path.",
+    example: "Sadist/Scripts/inputs.xml",
+  },
+  dependencies: {
+    label: "dependencies",
+    description:
+      "Optional script dependency levels for the mod. Add only the levels you actually use: Game, World, and/or Mission. If the mod has no script modules, leave this parameter disabled.",
+    example: "[\"Game\", \"World\", \"Mission\"]",
+  },
+  imageSetsFiles: {
+    label: "imageSets files",
+    description:
+      "Optional .imageset files for defs > imageSets. Use this when the mod registers icon sets or UI images. Paths must use forward slashes /.",
+    example: "Sadist/Scripts/Icons/SDT.imageset",
+  },
+  gameScriptModuleValue: {
+    label: "gameScriptModule value",
+    description:
+      "Optional value field inside gameScriptModule. Usually left empty unless your CfgMods template explicitly requires a value.",
+    example: "",
+  },
+  gameScriptModuleFiles: {
+    label: "gameScriptModule files",
+    description:
+      "Optional paths to 3_Game script folders. Enable this only if your mod contains Game-level scripts. Paths must use forward slashes /.",
+    example: "Sadist/Scripts/3_Game",
+  },
+  worldScriptModuleValue: {
+    label: "worldScriptModule value",
+    description:
+      "Optional value field inside worldScriptModule. Usually empty unless your World module needs a custom loader value.",
+    example: "",
+  },
+  worldScriptModuleFiles: {
+    label: "worldScriptModule files",
+    description:
+      "Optional paths to 4_World script folders. Enable this only if your mod contains World-level scripts. Paths must use forward slashes /.",
+    example: "Sadist/Scripts/4_World",
+  },
+  missionScriptModuleValue: {
+    label: "missionScriptModule value",
+    description:
+      "Optional value field inside missionScriptModule. Usually empty unless your Mission module needs a custom loader value.",
+    example: "",
+  },
+  missionScriptModuleFiles: {
+    label: "missionScriptModule files",
+    description:
+      "Optional paths to 5_Mission script folders. Enable this only if your mod contains Mission or UI scripts. Paths must use forward slashes /.",
+    example: "Sadist/Scripts/5_Mission",
+  },
 };
 
 const cppImportErrorMap: Record<string, string> = {
@@ -449,6 +599,7 @@ const uiTextMapEn: Record<string, string> = {
 };
 
 const originalCatalogSnapshot = JSON.parse(JSON.stringify(CATALOG)) as CategoryDef[];
+const originalCfgModsCatalogSnapshot = JSON.parse(JSON.stringify(CFG_MODS_CATALOG)) as CategoryDef[];
 
 export function readStoredLocale(): Locale {
   if (typeof window === "undefined") return "en";
@@ -499,6 +650,14 @@ function localizeOptionDescription(locale: Locale, option: SelectOption) {
 export function localizeParamMeta(locale: Locale, param: ParamDef): ParamDef {
   if (locale === "ru") return param;
 
+  const cfgModsParam = cfgModsParamEn[param.key];
+  if (cfgModsParam) {
+    return {
+      ...param,
+      ...cfgModsParam,
+    };
+  }
+
   const localizedLabel = containsCyrillic(param.label)
     ? param.key
     : param.label;
@@ -527,6 +686,31 @@ export function translateImportErrorMessage(locale: Locale, message?: string) {
 export function applyCatalogLocale(locale: Locale) {
   originalCatalogSnapshot.forEach((originalCategory, categoryIndex) => {
     const currentCategory = CATALOG[categoryIndex];
+    const localizedCategory = localizeCategoryMeta(locale, originalCategory);
+
+    currentCategory.title = localizedCategory.title;
+    currentCategory.description = localizedCategory.description;
+
+    originalCategory.params.forEach((originalParam, paramIndex) => {
+      const currentParam = currentCategory.params[paramIndex];
+      const localizedParam = localizeParamMeta(locale, originalParam);
+
+      currentParam.label = localizedParam.label;
+      currentParam.description = localizedParam.description;
+      currentParam.example = localizedParam.example;
+
+      if (currentParam.selectOptions && localizedParam.selectOptions) {
+        localizedParam.selectOptions.forEach((localizedOption, optionIndex) => {
+          currentParam.selectOptions![optionIndex].label = localizedOption.label;
+          currentParam.selectOptions![optionIndex].description =
+            localizedOption.description;
+        });
+      }
+    });
+  });
+
+  originalCfgModsCatalogSnapshot.forEach((originalCategory, categoryIndex) => {
+    const currentCategory = CFG_MODS_CATALOG[categoryIndex];
     const localizedCategory = localizeCategoryMeta(locale, originalCategory);
 
     currentCategory.title = localizedCategory.title;

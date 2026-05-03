@@ -8,7 +8,7 @@ import type { editor } from "monaco-editor";
 
 import { buildConfigCppBlob, getSafeConfigFileStem } from "@/lib/config-export";
 import { generateCpp, buildClassLineMap } from "@/lib/generator";
-import { useAppStore } from "@/lib/store";
+import { ConfigData, useAppStore } from "@/lib/store";
 import { useLocale } from "./locale-provider";
 import { Button } from "./ui/button";
 
@@ -22,95 +22,79 @@ export function PreviewPanel() {
   const lastScrolledTabId = useRef<string | null>(null);
 
   const activeTabId = activeConfig?.activeTabId;
-  const activeTab = activeConfig?.classes.find((c) => c.id === activeTabId);
-  const activeClassName = activeTab?.className?.replace(/[^a-zA-Z0-9_]/g, "") || "ExampleClass";
+  const codeSourceConfig = useMemo<ConfigData | undefined>(() => {
+    if (!activeConfig) return undefined;
+    return activeConfig;
+  }, [
+    activeConfig?.id,
+    activeConfig?.name,
+    activeConfig?.requiredAddons,
+    activeConfig?.cfgMods,
+    activeConfig?.classes,
+    activeConfig?.slots,
+    activeConfig?.proxies,
+  ]);
 
   const [copied, setCopied] = useState(false);
-  const [debouncedConfig, setDebouncedConfig] = useState(activeConfig);
+  const [debouncedConfig, setDebouncedConfig] = useState(codeSourceConfig);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setDebouncedConfig(activeConfig);
+      setDebouncedConfig(codeSourceConfig);
     }, 300);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [activeConfig]);
+  }, [codeSourceConfig]);
 
   const code = useMemo(() => {
     if (!debouncedConfig) return "";
     return generateCpp(debouncedConfig);
   }, [debouncedConfig]);
 
+  const classLineMap = useMemo(() => {
+    if (!debouncedConfig || !code) return {};
+    return buildClassLineMap(code, debouncedConfig);
+  }, [code, debouncedConfig]);
+
   useEffect(() => {
-    if (!editorRef.current || !activeTabId || !activeConfig) return;
+    if (!editorRef.current || !activeTabId) return;
 
     if (lastScrolledTabId.current !== activeTabId) {
-      let attempts = 0;
-      const interval = setInterval(() => {
-        attempts++;
-        if (attempts > 15) {
-          clearInterval(interval);
-          return;
+      const targetLine = classLineMap[activeTabId];
+      if (!targetLine) return;
+
+      const frameId = requestAnimationFrame(() => {
+        const editor = editorRef.current;
+        if (!editor) return;
+
+        const visibleRanges = editor.getVisibleRanges();
+        const isVisible = visibleRanges.some(
+          (range) =>
+            targetLine >= range.startLineNumber &&
+            targetLine <= range.endLineNumber,
+        );
+
+        if (!isVisible) {
+          editor.revealLineInCenter(targetLine);
         }
 
-        const currentModel = editorRef.current?.getModel();
-        if (!currentModel) return;
+        lastScrolledTabId.current = activeTabId;
+      });
 
-        // Ensure Monaco has loaded the exact text we are currently holding
-        const editorCode = currentModel.getValue();
-        if (!editorCode.includes(code.substring(0, Math.min(100, code.length)))) {
-           return; // Model is not synced yet
-        }
-
-        const lineMap = buildClassLineMap(editorCode, activeConfig);
-        const targetLine = lineMap[activeTabId];
-
-        if (targetLine) {
-          clearInterval(interval);
-          const editor = editorRef.current;
-          if (editor) {
-            editor.revealLineInCenter(targetLine);
-            const lineContent = currentModel.getLineContent(targetLine);
-            editor.setSelection({
-              startLineNumber: targetLine,
-              startColumn: 1,
-              endLineNumber: targetLine,
-              endColumn: lineContent.length + 1,
-            });
-            editor.focus();
-          }
-          lastScrolledTabId.current = activeTabId;
-        }
-      }, 100);
-
-      return () => clearInterval(interval);
+      return () => cancelAnimationFrame(frameId);
     }
-  }, [activeTabId, activeConfig, code]);
+  }, [activeTabId, classLineMap]);
 
   const handleEditorMount = (editorInstance: editor.IStandaloneCodeEditor) => {
     editorRef.current = editorInstance;
-    if (activeTabId && activeConfig) {
-      const model = editorInstance.getModel();
-      if (model) {
-        const editorCode = model.getValue();
-        const lineMap = buildClassLineMap(editorCode, activeConfig);
-        const targetLine = lineMap[activeTabId];
-        if (targetLine) {
-          editorInstance.revealLineInCenter(targetLine);
-          const lineContent = model.getLineContent(targetLine);
-          editorInstance.setSelection({
-            startLineNumber: targetLine,
-            startColumn: 1,
-            endLineNumber: targetLine,
-            endColumn: lineContent.length + 1,
-          });
-          lastScrolledTabId.current = activeTabId;
-        }
-      }
+    const targetLine = activeTabId ? classLineMap[activeTabId] : undefined;
+    if (targetLine) {
+      editorInstance.revealLineInCenter(targetLine);
+      lastScrolledTabId.current = activeTabId ?? null;
     }
   };
 

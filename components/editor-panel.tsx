@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, memo, useTransition } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import {
   useAppStore,
   ChildClassData,
   SlotData,
   ProxyData,
+  CfgModsData,
   CustomParamData,
   CustomParamType,
 } from "@/lib/store";
-import { CATALOG, type CategoryDef, type CategoryGroup } from "@/lib/catalog";
+import { CATALOG, CFG_MODS_CATALOG, type CategoryDef, type CategoryGroup, type ParamDef } from "@/lib/catalog";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "./ui/dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./ui/accordion";
 import { Input } from "./ui/input";
@@ -23,6 +24,12 @@ import {
 } from "./ui/dropdown-menu";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import {
   Card,
   CardContent,
@@ -172,24 +179,304 @@ function HelpTooltip({
   example?: string;
 }) {
   return (
-    <div className="group/tooltip relative inline-flex">
-      <button
-        type="button"
-        className="inline-flex h-4 w-4 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-600 focus-visible:outline-none focus-visible:text-zinc-600 dark:hover:text-zinc-300 dark:focus-visible:text-zinc-300"
-        aria-label={label}
-      >
-        <HelpCircle className="h-3.5 w-3.5 cursor-help" />
-      </button>
-      <div className="pointer-events-none absolute left-full top-full z-50 ml-2 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-zinc-200 bg-white px-3 py-2 text-zinc-900 opacity-0 shadow-[0_8px_24px_rgba(15,23,42,0.12)] transition-all duration-150 before:absolute before:-left-1 before:top-2 before:h-2 before:w-2 before:rotate-45 before:border-b before:border-l before:border-zinc-200 before:bg-white group-hover/tooltip:translate-x-0.5 group-hover/tooltip:opacity-100 group-focus-within/tooltip:translate-x-0.5 group-focus-within/tooltip:opacity-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] dark:before:border-zinc-700 dark:before:bg-zinc-900">
-        <p className="text-[13px] leading-5">{label}</p>
-        {example && (
-          <p className="mt-2 border-t border-zinc-100 pt-2 text-xs leading-4 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            <span className="font-semibold text-zinc-700 dark:text-zinc-200">Example:</span>{" "}
-            {example}
-          </p>
-        )}
-      </div>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-600 focus-visible:outline-none focus-visible:text-zinc-600 dark:hover:text-zinc-300 dark:focus-visible:text-zinc-300"
+            aria-label={label}
+          >
+            <HelpCircle className="h-3.5 w-3.5 cursor-help" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          className="z-[100] w-64 max-w-[calc(100vw-2rem)] rounded-md border border-zinc-200 bg-white px-3 py-2 text-left text-zinc-900 shadow-[0_8px_24px_rgba(15,23,42,0.12)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+          arrowClassName="bg-white fill-white dark:bg-zinc-900 dark:fill-zinc-900"
+        >
+          <p className="text-[13px] leading-5">{label}</p>
+          {example && (
+            <p className="mt-2 border-t border-zinc-100 pt-2 text-xs leading-4 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-200">Example:</span>{" "}
+              {example}
+            </p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function getCfgModsDefaultValues() {
+  const values: Record<string, unknown> = {};
+  CFG_MODS_CATALOG.forEach((category) => {
+    category.params.forEach((param) => {
+      values[param.key] = param.defaultValue;
+    });
+  });
+  return values;
+}
+
+function CfgModsSection({
+  cfgMods,
+  configId,
+}: {
+  cfgMods?: CfgModsData;
+  configId: string;
+}) {
+  const { t } = useLocale();
+  const updateCfgMods = useAppStore((s) => s.updateCfgMods);
+  const category = CFG_MODS_CATALOG[0];
+  const data = cfgMods || {
+    enabled: false,
+    enabledParams: {},
+    values: getCfgModsDefaultValues(),
+  };
+  const values = { ...getCfgModsDefaultValues(), ...(data.values || {}) };
+  const enabledParams = data.enabledParams || {};
+
+  const updateValues = (updates: Record<string, unknown>) => {
+    updateCfgMods(configId, {
+      values: {
+        ...values,
+        ...updates,
+      },
+    });
+  };
+
+  const setParamEnabled = (param: ParamDef, enabled: boolean) => {
+    updateCfgMods(configId, {
+      enabledParams: {
+        ...enabledParams,
+        [param.key]: enabled,
+      },
+      values:
+        enabled && values[param.key] === undefined
+          ? { ...values, [param.key]: param.defaultValue }
+          : values,
+    });
+  };
+
+  const getArrayValue = (key: string) => {
+    const value = values[key];
+    return Array.isArray(value) ? value : value ? [String(value)] : [];
+  };
+
+  const updateArrayItem = (key: string, index: number, nextValue: string) => {
+    const next = [...getArrayValue(key)];
+    next[index] = nextValue;
+    updateValues({ [key]: next });
+  };
+
+  const addArrayItem = (key: string) => {
+    updateValues({ [key]: [...getArrayValue(key), ""] });
+  };
+
+  const removeArrayItem = (key: string, index: number) => {
+    const next = [...getArrayValue(key)];
+    next.splice(index, 1);
+    updateValues({ [key]: next });
+  };
+
+  const renderParamInput = (param: ParamDef) => {
+    const value = values[param.key];
+
+    if (param.type === "boolean") {
+      return (
+        <div className="h-9 px-3 rounded-md border border-input bg-transparent flex items-center justify-between">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            {Number(value) === 1 || value === true ? "1" : "0"}
+          </span>
+          <Switch
+            checked={Number(value) === 1 || value === true}
+            onCheckedChange={(checked) =>
+              updateValues({ [param.key]: checked ? 1 : 0 })
+            }
+          />
+        </div>
+      );
+    }
+
+    if (param.type === "number") {
+      return (
+        <Input
+          type="number"
+          value={typeof value === "number" ? value : Number(value ?? 0)}
+          onChange={(event) =>
+            updateValues({ [param.key]: Number(event.target.value) })
+          }
+          className="h-8 text-sm font-mono"
+        />
+      );
+    }
+
+    if (param.type === "array_of_strings") {
+      const arrayValue = getArrayValue(param.key);
+
+      return (
+        <div className="flex flex-col gap-2">
+          {arrayValue.map((item, index) => (
+            <div key={index} className="flex items-center gap-1">
+              {param.selectOptions && param.selectOptions.length > 0 ? (
+                <ComboBox
+                  options={param.selectOptions.map((option) => ({
+                    label: option.label,
+                    value: String(option.value),
+                  }))}
+                  value={String(item ?? "")}
+                  onChange={(nextValue) =>
+                    updateArrayItem(param.key, index, nextValue)
+                  }
+                  placeholder={t("select_or_enter_value")}
+                  className="h-8 text-sm font-mono flex-1"
+                  allowCustom={param.allowCustom ?? true}
+                  searchPlaceholder={t("find_param", {
+                    label: param.label.toLowerCase(),
+                  })}
+                  customOptionLabel={(customValue) =>
+                    t("use_custom_value", { value: customValue })
+                  }
+                />
+              ) : (
+                <Input
+                  value={String(item ?? "")}
+                  onChange={(event) =>
+                    updateArrayItem(param.key, index, event.target.value)
+                  }
+                  placeholder={t("value_placeholder")}
+                  className="h-8 text-sm font-mono flex-1"
+                />
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-zinc-400 hover:text-red-500"
+                onClick={() => removeArrayItem(param.key, index)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+          {arrayValue.length === 0 && (
+            <p className="text-[10px] text-zinc-400 italic">
+              {t("list_empty")}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs self-start"
+            onClick={() => addArrayItem(param.key)}
+          >
+            <Plus className="w-3 h-3 mr-1" /> {t("add_item")}
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        value={String(value ?? "")}
+        onChange={(event) => updateValues({ [param.key]: event.target.value })}
+        className="h-8 text-sm font-mono"
+      />
+    );
+  };
+
+  const visibleParams = category.params.filter(
+    (param) => param.key === "modClassName" || enabledParams[param.key],
+  );
+  const hiddenParams = category.params.filter(
+    (param) => param.key !== "modClassName" && !enabledParams[param.key],
+  );
+
+  return (
+    <Accordion
+      type="single"
+      collapsible
+      defaultValue="cfg-mods"
+      className="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <AccordionItem value="cfg-mods" className="relative border-b-0">
+        <AccordionTrigger className="px-4 py-3 pr-20 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
+          <div className="min-w-0 flex-1 text-left">
+              <div className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                CfgMods
+              </div>
+              <div className="mt-1 text-xs font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                {category.description}
+              </div>
+          </div>
+        </AccordionTrigger>
+        <div className="absolute right-10 top-3.5 z-10">
+          <Switch
+            checked={data.enabled}
+            onCheckedChange={(checked) => updateCfgMods(configId, { enabled: checked })}
+          />
+        </div>
+        <AccordionContent className="px-4 pb-4 pt-0">
+          {!data.enabled ? (
+            <EmptyState message={category.description || "CfgMods"} />
+          ) : (
+            <div className="space-y-4">
+          <div className="flex flex-col gap-3">
+            {visibleParams.map((param) => (
+              <div
+                key={param.key}
+                className="rounded-lg border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-950/70"
+              >
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Label className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
+                      {param.label}
+                    </Label>
+                    <HelpTooltip label={param.description} example={param.example} />
+                  </div>
+                  {param.key !== "modClassName" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => setParamEnabled(param, false)}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+                {renderParamInput(param)}
+              </div>
+            ))}
+          </div>
+
+          {hiddenParams.length > 0 && (
+            <div className="rounded-lg border border-dashed border-zinc-200 p-3 dark:border-zinc-800">
+              <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {t("add_parameter")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {hiddenParams.map((param) => (
+                  <Button
+                    key={param.key}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setParamEnabled(param, true)}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    {param.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+            </div>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
 
@@ -907,7 +1194,6 @@ const RetexturesSection = memo(function RetexturesSection({
 
 export function EditorPanel() {
   const { t } = useLocale();
-  const [isPending, startTransition] = useTransition();
   const [openDialog, setOpenDialog] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [searchParamQuery, setSearchParamQuery] = useState("");
@@ -925,6 +1211,9 @@ export function EditorPanel() {
   const [newAddonInput, setNewAddonInput] = useState("");
   const [dragTabIndex, setDragTabIndex] = useState<number | null>(null);
   const [dropTabIndex, setDropTabIndex] = useState<number | null>(null);
+  const [optimisticActiveTabId, setOptimisticActiveTabId] = useState<string | null>(null);
+  const pendingTabFrameRef = useRef<number | null>(null);
+  const pendingTabTimeoutRef = useRef<number | null>(null);
 
   const configs = useAppStore((s) => s.configs);
   const activeConfigId = useAppStore((s) => s.activeConfigId);
@@ -943,6 +1232,21 @@ export function EditorPanel() {
 
   const config = configs.find((c) => c.id === activeConfigId);
 
+  useEffect(() => {
+    setOptimisticActiveTabId(config?.activeTabId ?? null);
+  }, [config?.id, config?.activeTabId]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingTabFrameRef.current !== null) {
+        cancelAnimationFrame(pendingTabFrameRef.current);
+      }
+      if (pendingTabTimeoutRef.current !== null) {
+        window.clearTimeout(pendingTabTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // ── Empty states ──
   if (!config) {
     return (
@@ -958,6 +1262,7 @@ export function EditorPanel() {
   const activeTab =
     config.classes.find((c) => c.id === config.activeTabId) ||
     config.classes[0];
+  const visibleActiveTabId = optimisticActiveTabId ?? config.activeTabId;
 
   if (!activeTab) {
     return (
@@ -1145,6 +1450,27 @@ export function EditorPanel() {
     setNewAddonInput("");
   };
 
+  const switchTabAfterPaint = (tabId: string) => {
+    if (tabId === visibleActiveTabId && tabId === config.activeTabId) return;
+
+    setOptimisticActiveTabId(tabId);
+
+    if (pendingTabFrameRef.current !== null) {
+      cancelAnimationFrame(pendingTabFrameRef.current);
+    }
+    if (pendingTabTimeoutRef.current !== null) {
+      window.clearTimeout(pendingTabTimeoutRef.current);
+    }
+
+    pendingTabFrameRef.current = requestAnimationFrame(() => {
+      pendingTabFrameRef.current = null;
+      pendingTabTimeoutRef.current = window.setTimeout(() => {
+        pendingTabTimeoutRef.current = null;
+        setActiveTab(config.id, tabId);
+      }, 0);
+    });
+  };
+
   // ── Render ──
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800">
@@ -1241,6 +1567,8 @@ export function EditorPanel() {
           {/* ════════════════════════════════════
               BLOCK 2 — CLASSES
           ════════════════════════════════════ */}
+          <CfgModsSection cfgMods={config.cfgMods} configId={config.id} />
+
           <Card>
             <CardHeader>
               <CardTitle>{t("class_section_title")}</CardTitle>
@@ -1252,22 +1580,14 @@ export function EditorPanel() {
                 {config.classes.map((cls, index) => (
                   <div
                     key={cls.id}
-                    draggable={config.classes.length > 1}
-                    className={`group relative flex items-center h-8 pl-2 pr-2.5 rounded-md text-xs font-medium border transition-all duration-150 shrink-0 max-w-45 cursor-grab active:cursor-grabbing ${
-                      config.activeTabId === cls.id
-                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow-md"
-                        : "bg-white dark:bg-zinc-800/70 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-sm hover:-translate-y-px"
+                    className={`group relative flex items-center h-8 pl-2 pr-2.5 rounded-md text-xs font-medium border shrink-0 max-w-45 ${
+                      visibleActiveTabId === cls.id
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow-sm"
+                        : "bg-white dark:bg-zinc-800/70 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
                     }`}
                     style={{
                       opacity: dragTabIndex === index ? 0.55 : 1,
-                      transform: dragTabIndex === index ? "scale(1.02)" : "scale(1)",
                       zIndex: dragTabIndex === index ? 10 : 1,
-                    }}
-                    onDragStart={(e) => {
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", cls.id);
-                      setDragTabIndex(index);
-                      setDropTabIndex(index);
                     }}
                     onDragOver={(e) => {
                       e.preventDefault();
@@ -1289,15 +1609,24 @@ export function EditorPanel() {
                       setDropTabIndex(null);
                     }}
                     onClick={() => {
-                      startTransition(() => {
-                        setActiveTab(config.id, cls.id);
-                      });
+                      switchTabAfterPaint(cls.id);
                     }}
                   >
                     {dropTabIndex === index && dragTabIndex !== index && (
                       <span className="absolute inset-0 rounded-md ring-2 ring-blue-400/70 dark:ring-blue-500/70 bg-blue-50/40 dark:bg-blue-500/10 pointer-events-none" />
                     )}
-                    <GripVertical className="w-3.5 h-3.5 shrink-0 mr-1.5 opacity-35 group-hover:opacity-60 transition-opacity" />
+                    <span
+                      draggable={config.classes.length > 1}
+                      className="mr-1.5 flex shrink-0 cursor-grab items-center active:cursor-grabbing"
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", cls.id);
+                        setDragTabIndex(index);
+                        setDropTabIndex(index);
+                      }}
+                    >
+                      <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-60" />
+                    </span>
                     <span className="truncate">
                       {cls.className || "NewClass"}
                     </span>
@@ -1305,7 +1634,7 @@ export function EditorPanel() {
                       <button
                         type="button"
                         draggable={false}
-                        className="ml-2 rounded-sm opacity-0 group-hover:opacity-70 hover:opacity-100! transition-all shrink-0"
+                        className="ml-2 rounded-sm opacity-0 group-hover:opacity-70 hover:opacity-100! shrink-0"
                         onMouseDown={(e) => {
                           e.stopPropagation();
                         }}

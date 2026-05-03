@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { CATALOG, type ParamType } from './catalog';
+import { CATALOG, CFG_MODS_CATALOG, type ParamType } from './catalog';
 import { parseConfigCpp } from './cpp-importer';
 
 export interface ChildClassData {
@@ -50,10 +50,17 @@ export interface MainClassData {
     customParams: CustomParamData[];
 }
 
+export interface CfgModsData {
+    enabled: boolean;
+    enabledParams: Record<string, boolean>;
+    values: Record<string, unknown>;
+}
+
 export interface ConfigData {
     id: string;
     name: string;
     requiredAddons: string[];
+    cfgMods: CfgModsData;
     classes: MainClassData[];
     activeTabId: string | null;
     slots: SlotData[];
@@ -81,6 +88,7 @@ export interface AppState {
     deleteConfig: (id: string) => void;
     setActiveConfig: (id: string) => void;
     updateRequiredAddons: (configId: string, addons: string[]) => void;
+    updateCfgMods: (configId: string, updates: Partial<CfgModsData>) => void;
 
     // Tab actions
     addTab: (configId: string, className?: string) => void;
@@ -139,6 +147,22 @@ const PRESET_PARAMS: Record<PresetName, string[]> = {
     ]
 };
 
+const getDefaultCfgModsValues = () => {
+    const values: Record<string, unknown> = {};
+    CFG_MODS_CATALOG.forEach((cat) => {
+        cat.params.forEach((param) => {
+            values[param.key] = param.defaultValue;
+        });
+    });
+    return values;
+};
+
+const createDefaultCfgMods = (): CfgModsData => ({
+    enabled: false,
+    enabledParams: {},
+    values: getDefaultCfgModsValues(),
+});
+
 const HISTORY_LIMIT = 100;
 
 function sanitizeConfigName(name: unknown, fallback = 'New Project') {
@@ -157,6 +181,14 @@ function sanitizePersistedConfigs(configs: unknown): ConfigData[] {
             id: typeof candidate.id === 'string' ? candidate.id : uuidv4(),
             name: sanitizeConfigName(candidate.name, `Project ${index + 1}`),
             requiredAddons: Array.isArray(candidate.requiredAddons) ? candidate.requiredAddons : ['DZ_Data', 'DZ_Characters'],
+            cfgMods: {
+                ...createDefaultCfgMods(),
+                ...(candidate.cfgMods && typeof candidate.cfgMods === 'object' ? candidate.cfgMods : {}),
+                values: {
+                    ...getDefaultCfgModsValues(),
+                    ...((candidate.cfgMods as Partial<CfgModsData> | undefined)?.values || {}),
+                },
+            },
             classes,
             activeTabId: typeof candidate.activeTabId === 'string' || candidate.activeTabId === null
                 ? candidate.activeTabId
@@ -275,6 +307,7 @@ export const useAppStore = create<AppState>()(
                     id: uuidv4(),
                     name: sanitizeConfigName(name),
                     requiredAddons: ['DZ_Data', 'DZ_Characters'],
+                    cfgMods: createDefaultCfgMods(),
                     activeTabId: initialTabId,
                     slots: [],
                     proxies: [],
@@ -311,6 +344,7 @@ export const useAppStore = create<AppState>()(
                         id: uuidv4(),
                         name: imported.name || fallbackName,
                         requiredAddons: imported.requiredAddons,
+                        cfgMods: createDefaultCfgMods(),
                         activeTabId: firstTabId,
                         slots: imported.slots.map(slot => ({
                             id: uuidv4(),
@@ -368,6 +402,11 @@ export const useAppStore = create<AppState>()(
                         ...configToCopy,
                         id: uuidv4(),
                         name: `${configToCopy.name} (Copy)`,
+                        cfgMods: {
+                            ...configToCopy.cfgMods,
+                            enabledParams: { ...(configToCopy.cfgMods?.enabledParams || {}) },
+                            values: { ...(configToCopy.cfgMods?.values || {}) },
+                        },
                         slots: (configToCopy.slots || []).map(s => ({ ...s, id: uuidv4() })),
                         proxies: (configToCopy.proxies || []).map(p => ({ ...p, id: uuidv4() })),
                         classes: configToCopy.classes.map(cls => ({
@@ -405,13 +444,37 @@ export const useAppStore = create<AppState>()(
             },
 
             setActiveConfig: (id) => {
-                setWithHistory({ activeConfigId: id });
+                setWithoutHistory((state) => (
+                    state.activeConfigId === id ? state : { activeConfigId: id }
+                ));
             },
 
             updateRequiredAddons: (configId, addons) => {
                 setWithHistory((state) => ({
                     configs: state.configs.map(c =>
                         c.id === configId ? { ...c, requiredAddons: addons } : c
+                    ),
+                }));
+            },
+
+            updateCfgMods: (configId, updates) => {
+                setWithHistory((state) => ({
+                    configs: state.configs.map(c =>
+                        c.id === configId
+                            ? {
+                                ...c,
+                                cfgMods: {
+                                    ...(c.cfgMods || createDefaultCfgMods()),
+                                    ...updates,
+                                    values: updates.values
+                                        ? { ...(c.cfgMods?.values || getDefaultCfgModsValues()), ...updates.values }
+                                        : c.cfgMods?.values || getDefaultCfgModsValues(),
+                                    enabledParams: updates.enabledParams
+                                        ? { ...(c.cfgMods?.enabledParams || {}), ...updates.enabledParams }
+                                        : c.cfgMods?.enabledParams || {},
+                                },
+                            }
+                            : c
                     ),
                 }));
             },
@@ -469,9 +532,16 @@ export const useAppStore = create<AppState>()(
             },
 
             setActiveTab: (configId, tabId) => {
-                setWithHistory((state) => ({
-                    configs: state.configs.map((c) => c.id === configId ? { ...c, activeTabId: tabId } : c),
-                }));
+                setWithoutHistory((state) => {
+                    const config = state.configs.find((c) => c.id === configId);
+                    if (!config || config.activeTabId === tabId) return state;
+
+                    return {
+                        configs: state.configs.map((c) =>
+                            c.id === configId ? { ...c, activeTabId: tabId } : c
+                        ),
+                    };
+                });
             },
 
             duplicateTab: (configId, tabId) => {
