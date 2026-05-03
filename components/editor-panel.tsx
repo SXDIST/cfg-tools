@@ -220,6 +220,61 @@ function getCfgModsDefaultValues() {
   return values;
 }
 
+const CFG_MODS_PARAM_GROUPS = [
+  {
+    id: "identity",
+    titleKey: "cfgmods_group_identity_title",
+    descriptionKey: "cfgmods_group_identity_desc",
+    keys: [
+      "dir",
+      "name",
+      "author",
+      "authorID",
+      "version",
+      "type",
+      "extra",
+    ],
+  },
+  {
+    id: "presentation",
+    titleKey: "cfgmods_group_presentation_title",
+    descriptionKey: "cfgmods_group_presentation_desc",
+    keys: [
+      "picture",
+      "action",
+      "hideName",
+      "hidePicture",
+      "tooltip",
+      "overview",
+      "credits",
+    ],
+  },
+  {
+    id: "scripts",
+    titleKey: "cfgmods_group_scripts_title",
+    descriptionKey: "cfgmods_group_scripts_desc",
+    keys: [
+      "inputs",
+      "dependencies",
+      "imageSetsFiles",
+      "gameScriptModuleValue",
+      "gameScriptModuleFiles",
+      "worldScriptModuleValue",
+      "worldScriptModuleFiles",
+      "missionScriptModuleValue",
+      "missionScriptModuleFiles",
+    ],
+  },
+];
+
+const CFG_MODS_PLACEMENT_LABELS: Record<string, string> = {
+  root: "cfgmods_picker_group_root",
+  "defs.imageSets": "cfgmods_picker_group_defs_imagesets",
+  "defs.gameScriptModule": "cfgmods_picker_group_game_script",
+  "defs.worldScriptModule": "cfgmods_picker_group_world_script",
+  "defs.missionScriptModule": "cfgmods_picker_group_mission_script",
+};
+
 function CfgModsSection({
   cfgMods,
   configId,
@@ -228,6 +283,9 @@ function CfgModsSection({
   configId: string;
 }) {
   const { t } = useLocale();
+  const [cfgModsDialogOpen, setCfgModsDialogOpen] = useState(false);
+  const [cfgModsParamQuery, setCfgModsParamQuery] = useState("");
+  const [selectedCfgModsParamKeys, setSelectedCfgModsParamKeys] = useState<string[]>([]);
   const updateCfgMods = useAppStore((s) => s.updateCfgMods);
   const category = CFG_MODS_CATALOG[0];
   const data = cfgMods || {
@@ -258,6 +316,35 @@ function CfgModsSection({
           ? { ...values, [param.key]: param.defaultValue }
           : values,
     });
+  };
+
+  const resetCfgModsDialog = () => {
+    setSelectedCfgModsParamKeys([]);
+    setCfgModsParamQuery("");
+  };
+
+  const applySelectedCfgModsParams = () => {
+    if (selectedCfgModsParamKeys.length === 0) return;
+
+    const selectedKeys = new Set(selectedCfgModsParamKeys);
+    const nextEnabledParams = { ...enabledParams };
+    const nextValues = { ...values };
+
+    category.params.forEach((param) => {
+      if (!selectedKeys.has(param.key)) return;
+      nextEnabledParams[param.key] = true;
+
+      if (nextValues[param.key] === undefined) {
+        nextValues[param.key] = param.defaultValue;
+      }
+    });
+
+    updateCfgMods(configId, {
+      enabledParams: nextEnabledParams,
+      values: nextValues,
+    });
+    setCfgModsDialogOpen(false);
+    resetCfgModsDialog();
   };
 
   const getArrayValue = (key: string) => {
@@ -392,6 +479,80 @@ function CfgModsSection({
   const hiddenParams = category.params.filter(
     (param) => param.key !== "modClassName" && !enabledParams[param.key],
   );
+  const paramByKey = new Map(category.params.map((param) => [param.key, param]));
+  const groupedParamKeys = new Set(
+    CFG_MODS_PARAM_GROUPS.flatMap((group) => group.keys),
+  );
+  const groupedParamSections = CFG_MODS_PARAM_GROUPS.map((group) => ({
+    ...group,
+    params: group.keys
+      .map((key) => paramByKey.get(key))
+      .filter((param): param is ParamDef => Boolean(param))
+      .filter((param) => enabledParams[param.key]),
+  })).filter((group) => group.params.length > 0);
+  const extraVisibleParams = visibleParams.filter(
+    (param) => param.key !== "modClassName" && !groupedParamKeys.has(param.key),
+  );
+  const modClassParam = paramByKey.get("modClassName");
+  const normalizedCfgModsParamQuery = cfgModsParamQuery.trim().toLowerCase();
+  const pickerParamGroups = Object.entries(
+    hiddenParams.reduce<Record<string, ParamDef[]>>((acc, param) => {
+      const placement = param.placement || "root";
+      acc[placement] = acc[placement] || [];
+      acc[placement].push(param);
+      return acc;
+    }, {}),
+  ).map(([placement, params]) => {
+    const groupLabelKey = CFG_MODS_PLACEMENT_LABELS[placement] || "cfgmods_picker_group_other";
+    const groupLabel = t(groupLabelKey);
+    const filteredParams = params.filter((param) => {
+      if (!normalizedCfgModsParamQuery) return true;
+
+      return [param.label, param.key, param.description, groupLabel, placement]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedCfgModsParamQuery);
+    });
+
+    return { placement, groupLabel, params: filteredParams };
+  }).filter((group) => group.params.length > 0);
+  const filteredCfgModsParamCount = pickerParamGroups.reduce(
+    (sum, group) => sum + group.params.length,
+    0,
+  );
+
+  const renderCompactParam = (param: ParamDef, required = false) => {
+    const isWide = param.type === "array_of_strings";
+
+    return (
+      <div
+        key={param.key}
+        className={`rounded-md border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-950/70 ${
+          isWide ? "md:col-span-2" : ""
+        }`}
+      >
+        <div className="mb-1.5 flex min-h-5 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Label className="truncate text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+              {param.label}
+            </Label>
+            <HelpTooltip label={param.description} example={param.example} />
+          </div>
+          {!required && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 shrink-0 text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+              onClick={() => setParamEnabled(param, false)}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        {renderParamInput(param)}
+      </div>
+    );
+  };
 
   return (
     <Accordion
@@ -403,12 +564,12 @@ function CfgModsSection({
       <AccordionItem value="cfg-mods" className="relative border-b-0">
         <AccordionTrigger className="px-4 py-3 pr-20 hover:no-underline hover:bg-zinc-50 dark:hover:bg-zinc-900/50 rounded-lg transition-colors">
           <div className="min-w-0 flex-1 text-left">
-              <div className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                CfgMods
-              </div>
-              <div className="mt-1 text-xs font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                {category.description}
-              </div>
+            <div className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+              CfgMods
+            </div>
+            <div className="mt-1 text-xs font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+              {category.description}
+            </div>
           </div>
         </AccordionTrigger>
         <div className="absolute right-10 top-3.5 z-10">
@@ -421,57 +582,193 @@ function CfgModsSection({
           {!data.enabled ? (
             <EmptyState message={category.description || "CfgMods"} />
           ) : (
-            <div className="space-y-4">
-          <div className="flex flex-col gap-3">
-            {visibleParams.map((param) => (
-              <div
-                key={param.key}
-                className="rounded-lg border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-950/70"
-              >
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <Label className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
-                      {param.label}
-                    </Label>
-                    <HelpTooltip label={param.description} example={param.example} />
-                  </div>
-                  {param.key !== "modClassName" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                      onClick={() => setParamEnabled(param, false)}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                </div>
-                {renderParamInput(param)}
-              </div>
-            ))}
-          </div>
+            <div className="space-y-3">
+              {modClassParam && renderCompactParam(modClassParam, true)}
 
-          {hiddenParams.length > 0 && (
-            <div className="rounded-lg border border-dashed border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {t("add_parameter")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {hiddenParams.map((param) => (
-                  <Button
-                    key={param.key}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setParamEnabled(param, true)}
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    {param.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
+              {groupedParamSections.map((group) => (
+                <div
+                  key={group.id}
+                  className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/30"
+                >
+                  <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        {t(group.titleKey)}
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-zinc-400 dark:text-zinc-500">
+                        {t(group.descriptionKey)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[11px]">
+                      {group.params.length}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {group.params.map((param) => renderCompactParam(param))}
+                  </div>
+                </div>
+              ))}
+
+              {extraVisibleParams.length > 0 && (
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {extraVisibleParams.map((param) => renderCompactParam(param))}
+                </div>
+              )}
+
+              {hiddenParams.length > 0 && (
+                <Dialog
+                  open={cfgModsDialogOpen}
+                  onOpenChange={(open) => {
+                    setCfgModsDialogOpen(open);
+                    if (!open) resetCfgModsDialog();
+                  }}
+                >
+                  <div className="rounded-lg border border-dashed border-zinc-200 p-3 dark:border-zinc-800">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            {t("cfgmods_optional_params_title")}
+                          </p>
+                          <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[11px]">
+                            {t("cfgmods_available_count", { count: hiddenParams.length })}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-snug text-zinc-400 dark:text-zinc-500">
+                          {t("cfgmods_optional_params_desc")}
+                        </p>
+                      </div>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs">
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          {t("cfgmods_add_params")}
+                        </Button>
+                      </DialogTrigger>
+                    </div>
+                  </div>
+
+                  <DialogContent className="!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-[min(860px,calc(100vw-2rem))] sm:!max-w-[min(860px,calc(100vw-2rem))] p-0 overflow-hidden flex flex-col h-[min(82vh,720px)] bg-white dark:bg-zinc-950">
+                    <DialogHeader className="shrink-0 border-b border-zinc-200 p-4 pb-3 pr-14 dark:border-zinc-800">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <DialogTitle>{t("cfgmods_add_params_title")}</DialogTitle>
+                          <DialogDescription>
+                            {t("cfgmods_add_params_desc")}
+                          </DialogDescription>
+                        </div>
+                        <Badge variant="secondary" className="mt-0.5 shrink-0 rounded-full px-3 py-1 text-xs font-medium">
+                          {t("selected_parameter_count", {
+                            count: selectedCfgModsParamKeys.length,
+                          })}
+                        </Badge>
+                      </div>
+                    </DialogHeader>
+
+                    <div className="shrink-0 border-b border-zinc-200 p-3 dark:border-zinc-800">
+                      <Input
+                        value={cfgModsParamQuery}
+                        onChange={(event) => setCfgModsParamQuery(event.target.value)}
+                        placeholder={t("cfgmods_search_placeholder")}
+                        className="h-9"
+                      />
+                    </div>
+
+                    <ScrollArea className="min-h-0 flex-1">
+                      <div className="flex flex-col gap-4 p-3">
+                        {pickerParamGroups.map((group) => (
+                          <div key={group.placement}>
+                            <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-zinc-50/80 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                  {group.groupLabel}
+                                </p>
+                                <p className="mt-0.5 text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                                  {group.placement}
+                                </p>
+                              </div>
+                              <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[11px]">
+                                {group.params.length}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {group.params.map((param) => {
+                                const isSelected = selectedCfgModsParamKeys.includes(param.key);
+
+                                return (
+                                  <button
+                                    key={param.key}
+                                    type="button"
+                                    className={`group rounded-lg border p-3 text-left transition-all ${
+                                      isSelected
+                                        ? "border-blue-500 bg-blue-50/70 dark:border-blue-500 dark:bg-blue-500/10"
+                                        : "border-zinc-200 hover:border-blue-400 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-blue-500 dark:hover:bg-zinc-900/40"
+                                    }`}
+                                    onClick={() =>
+                                      setSelectedCfgModsParamKeys((prev) =>
+                                        prev.includes(param.key)
+                                          ? prev.filter((key) => key !== param.key)
+                                          : [...prev, param.key],
+                                      )
+                                    }
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                          {param.label}
+                                        </p>
+                                        <p className="mt-0.5 text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                                          {param.key}
+                                        </p>
+                                      </div>
+                                      <div
+                                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                                          isSelected
+                                            ? "border-blue-500 bg-blue-500 text-white"
+                                            : "border-zinc-300 text-transparent group-hover:border-blue-400 dark:border-zinc-700"
+                                        }`}
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </div>
+                                    </div>
+                                    <p className="mt-2 line-clamp-2 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
+                                      {param.description}
+                                    </p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+
+                        {filteredCfgModsParamCount === 0 && (
+                          <div className="py-10 text-center text-sm text-zinc-500">
+                            {t("no_query_results")}
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+
+                    <div className="flex items-center justify-between gap-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {t("selected_parameter_count", {
+                          count: selectedCfgModsParamKeys.length,
+                        })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => setCfgModsDialogOpen(false)}>
+                          {t("cancel")}
+                        </Button>
+                        <Button
+                          onClick={applySelectedCfgModsParams}
+                          disabled={selectedCfgModsParamKeys.length === 0}
+                        >
+                          {t("add_selected_parameters")}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           )}
         </AccordionContent>
